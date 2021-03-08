@@ -62,9 +62,9 @@ def compute_events_dates(years):
         events_dates_by_event[Events.EPIPHANIE].append(datetime.date(year, 1, 6))
         # chandeleur
         events_dates_by_event[Events.CHANDELEUR].append(datetime.date(year, 2, 2))
-        # mardi_gras :
-        date_easter = dateutil.easter.easter(year, 3)
         # date_easter = easter(year)
+        date_easter = dateutil.easter.easter(year, 3)
+        # mardi_gras 
         events_dates_by_event[Events.MARDI_GRAS].append(date_easter - datetime.timedelta(days=47))
 
         # Halloween : 31/10
@@ -80,6 +80,7 @@ def compute_events_dates(years):
         events_dates_by_event[Events.RAMADAN].append(ramadan.date())
         # aid
         events_dates_by_event[Events.AID].append((ramadan + datetime.timedelta(days=30)).date())
+        
         # chinese new year
         events_dates_by_event[Events.NOUVEL_AN_CHINOIS].append(lunardate.LunarDate(year, 1, 1, 0).toSolarDate())
 
