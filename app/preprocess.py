@@ -16,7 +16,7 @@ from app.log import logger
 
 def compute_min_max_date(begin_training, begin_prediction, end_prediction, date_format, weeks_latency):
     """
-    check consistency of dates providen by the user and compute end_traingin date as follow:
+    check consistency of dates providen by the user and compute end_training date as follow:
         - training will be performed between `begin_training` and `end_training`
         - prediction will be performed between `begin_prediction` and `end_prediction`
         - last training day i.e. `end_training` and first prediction day i.e. `begin_prediction`

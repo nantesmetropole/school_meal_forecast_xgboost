@@ -77,7 +77,7 @@ def export_predictions(prediction_input_data, output_dir, file_name):
 
 def evaluate_predictions(reference_data, ref_to_beat, prediction):
     """
-    evalutes `predictions` and `ref_to_beat` regarding to true_values `reference_data`
+    evaluates `predictions` and `ref_to_beat` regarding to true_values `reference_data`
     """
     logger.info("number of predictions: theirs: %s / ours: %s", len(reference_data), len(prediction))
     logger.info("R2: %0.2f", r2_score(reference_data, ref_to_beat))
@@ -96,7 +96,7 @@ def evaluate_predictions(reference_data, ref_to_beat, prediction):
 
 def evaluate_predictions_by_resolution(column_to_predict, complete_pred_df, predicted_col, resolution):
     """
-    evalutes `predicted_col` within dataframe `complete_pred_df` regarding to true_values `column_to_predict`
+    evaluates `predicted_col` within dataframe `complete_pred_df` regarding to true_values `column_to_predict`
     after aggregating the values predicting using the list of columns `resolution` to group lines
     """
     logger.info("OURS BY RESOLUTION %s:", resolution)

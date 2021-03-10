@@ -21,7 +21,7 @@ The tool was developed by [Verteego](https://www.verteego.com/) on behalf of Nan
 |  ├── log.py             # Source file handle logging through the project
 |  ├── plot.py            # Source file to plot results of train.py
 |  ├── preprocess.py      # Source file to prepare data
-|  └── train.py           # Source file to chose a model, train it and predict
+|  └── train.py           # Source file to choose a model, train it and predict
 ├── tests                 # Automated tests
 |  ├── app                # Automated tests of the app
 |  ├── calculators        # Automated tests of the calculators
@@ -104,7 +104,7 @@ Those files can be distinguished in 3 categories detailed in their own subsectio
 ### raw files
 
 This project has been implemented considering the following files. Thus it cannot work without them.
-Note that Data files contain information related to France, thus their names are in French for more convenience to the users.
+Note that Data files contain informations related to France, thus their names are in french for more convenience to the users.
 
 *Note that among those files categorical features are automatically one hot encoded.
 Thus, one can change the possible values but must ensure that they remain consistent along the files.*
