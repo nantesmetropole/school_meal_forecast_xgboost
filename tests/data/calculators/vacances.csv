@@ -1,0 +1,97 @@
+annee_scolaire,vacances_nom,date_debut,date_fin,zone,vacances
+2010-2011,Vacances de la Toussaint,2010-10-23,2010-11-03,B,1
+2010-2011,Vacances de Noel,2010-12-18,2011-01-02,B,1
+2010-2011,Vacances d'Hiver,2011-02-26,2011-03-13,B,1
+2010-2011,Vacances d'Avril,2011-04-23,2011-05-09,B,1
+2011-2012,Vacances de la Toussaint,2011-10-22,2011-11-02,B,1
+2011-2012,Vacances de Noel,2011-12-17,2012-01-02,B,1
+2011-2012,Vacances d'Hiver,2012-02-11,2012-02-26,B,1
+2011-2012,Vacances d'Avril,2012-04-07,2012-04-23,B,1
+2012-2013,Vacances de la Toussaint,2012-10-27,2012-11-07,B,1
+2012-2013,Vacances de Noel,2012-12-22,2013-01-06,B,1
+2012-2013,Vacances d'Hiver,2013-02-23,2013-03-10,B,1
+2012-2013,Vacances d'Avril,2013-04-20,2013-05-05,B,1
+2013-2014,Vacances de la Toussaint,2013-10-19,2013-11-03,B,1
+2013-2014,Vacances de Noel,2013-12-21,2014-01-05,B,1
+2013-2014,Vacances d'Hiver,2014-03-01,2014-03-16,B,1
+2013-2014,Vacances d'Avril,2014-04-26,2014-05-11,B,1
+2014-2015,Vacances de la Toussaint,2014-10-18,2014-11-02,B,1
+2014-2015,Vacances de Noel,2014-12-20,2015-01-04,B,1
+2014-2015,Vacances d'Hiver,2015-02-07,2015-02-22,B,1
+2014-2015,Vacances d'Avril,2015-04-11,2015-04-27,B,1
+2015-2016,Vacances de la Toussaint,2015-10-17,2015-11-01,B,1
+2015-2016,Vacances de Noel,2015-12-19,2016-01-03,B,1
+2015-2016,Vacances d'Hiver,2016-02-13,2016-02-28,B,1
+2015-2016,Vacances d'Avril,2016-04-16,2016-05-02,B,1
+2016-2017,Vacances de la Toussaint,2016-10-19,2016-11-02,B,1
+2016-2017,Vacances de Noel,2016-12-17,2017-01-02,B,1
+2016-2017,Vacances d'Hiver,2017-02-18,2017-03-06,B,1
+2016-2017,Vacances d'Avril,2017-04-22,2017-05-08,B,1
+2017-2018,Vacances de la Toussaint,2017-10-21,2017-11-05,B,1
+2017-2018,Vacances de Noel,2017-12-23,2018-01-07,B,1
+2017-2018,Vacances d'Hiver,2018-02-24,2018-03-11,B,1
+2017-2018,Vacances d'Avril,2018-04-25,2018-05-13,B,1
+2018-2019,Vacances de la Toussaint,2018-10-20,2018-11-04,B,1
+2018-2019,Vacances de Noel,2018-12-22,2019-01-06,B,1
+2018-2019,Vacances d'Hiver,2019-02-09,2019-02-24,B,1
+2018-2019,Vacances d'Avril,2019-04-06,2019-04-21,B,1
+2019-2020,Vacances de la Toussaint,2019-10-19,2019-11-03,B,1
+2019-2020,Vacances de Noel,2019-12-21,2020-01-05,B,1
+2019-2020,Vacances d'Hiver,2020-02-15,2020-03-01,B,1
+2019-2020,Vacances d'Avril,2020-04-11,2020-04-26,B,1
+2010-2011,Vacances de la Toussaint,2010-10-23,2010-11-03,B,1
+2010-2011,Vacances de Noel,2010-12-18,2011-01-02,B,1
+2010-2011,Vacances d'Hiver,2011-02-26,2011-03-13,B,1
+2010-2011,Vacances d'Avril,2011-04-23,2011-05-09,B,1
+2011-2012,Vacances de la Toussaint,2011-10-22,2011-11-02,B,1
+2011-2012,Vacances de Noel,2011-12-17,2012-01-02,B,1
+2011-2012,Vacances d'Hiver,2012-02-11,2012-02-26,B,1
+2011-2012,Vacances d'Avril,2012-04-07,2012-04-23,B,1
+2012-2013,Vacances de la Toussaint,2012-10-27,2012-11-07,B,1
+2012-2013,Vacances de Noel,2012-12-22,2013-01-06,B,1
+2012-2013,Vacances d'Hiver,2013-02-23,2013-03-10,B,1
+2012-2013,Vacances d'Avril,2013-04-20,2013-05-05,B,1
+2013-2014,Vacances de la Toussaint,2013-10-19,2013-11-03,B,1
+2013-2014,Vacances de Noel,2013-12-21,2014-01-05,B,1
+2013-2014,Vacances d'Hiver,2014-03-01,2014-03-16,B,1
+2013-2014,Vacances d'Avril,2014-04-26,2014-05-11,B,1
+2014-2015,Vacances de la Toussaint,2014-10-18,2014-11-02,B,1
+2014-2015,Vacances de Noel,2014-12-20,2015-01-04,B,1
+2014-2015,Vacances d'Hiver,2015-02-07,2015-02-22,B,1
+2014-2015,Vacances d'Avril,2015-04-11,2015-04-27,B,1
+2015-2016,Vacances de la Toussaint,2015-10-17,2015-11-01,B,1
+2015-2016,Vacances de Noel,2015-12-19,2016-01-03,B,1
+2015-2016,Vacances d'Hiver,2016-02-13,2016-02-28,B,1
+2015-2016,Vacances d'Avril,2016-04-16,2016-05-02,B,1
+2016-2017,Vacances de la Toussaint,2016-10-19,2016-11-02,B,1
+2016-2017,Vacances de Noel,2016-12-17,2017-01-02,B,1
+2016-2017,Vacances d'Hiver,2017-02-18,2017-03-06,B,1
+2016-2017,Vacances d'Avril,2017-04-22,2017-05-08,B,1
+2017-2018,Vacances de la Toussaint,2017-10-21,2017-11-05,B,1
+2017-2018,Vacances de Noel,2017-12-23,2018-01-07,B,1
+2017-2018,Vacances d'Hiver,2018-02-24,2018-03-11,B,1
+2017-2018,Vacances d'Avril,2018-04-25,2018-05-13,B,1
+2018-2019,Vacances de la Toussaint,2018-10-20,2018-11-04,B,1
+2018-2019,Vacances de Noel,2018-12-22,2019-01-06,B,1
+2018-2019,Vacances d'Hiver,2019-02-09,2019-02-24,B,1
+2018-2019,Vacances d'Avril,2019-04-06,2019-04-21,B,1
+2019-2020,Vacances de la Toussaint,2019-10-19,2019-11-03,B,1
+2019-2020,Vacances de Noel,2019-12-21,2020-01-05,B,1
+2019-2020,Vacances d'Hiver,2020-02-15,2020-03-01,B,1
+2019-2020,Vacances d'Avril,2020-04-11,2020-04-26,B,1
+2010-2011,Vacances d'Ete,2011-07-03,2011-09-04,B,1
+2011-2012,Vacances d'Ete,2012-07-06,2012-09-03,B,1
+2012-2013,Vacances d'Ete,2013-07-07,2013-09-02,B,1
+2013-2014,Vacances d'Ete,2014-07-06,2014-09-01,B,1
+2014-2015,Vacances d'Ete,2015-07-05,2015-08-31,B,1
+2015-2016,Vacances d'Ete,2016-07-06,2016-08-31,B,1
+2016-2017,Vacances d'Ete,2017-07-09,2017-09-03,B,1
+2017-2018,Vacances d'Ete,2018-07-08,2018-09-02,B,1
+2018-2019,Vacances d'Ete,2019-07-07,2019-09-01,B,1
+2019-2020,Vacances d'Ete,2020-07-05,2020-08-31,B,1
+2020-2021,Vacances de la Toussaint,2020-10-17,2020-11-01,B,1
+2020-2021,Vacances de Noel,2020-12-19,2021-01-03,B,1
+2020-2021,Vacances d'Hiver,2021-02-20,2021-03-07,B,1
+2020-2021,Vacances d'Avril,2021-04-24,2021-05-09,B,1
+2020-2021,Pont de l'Ascension,2021-05-12,2021-05-16,B,1
+2020-2021,Vacances d'Ete,2021-07-06,2021-08-31,B,1
