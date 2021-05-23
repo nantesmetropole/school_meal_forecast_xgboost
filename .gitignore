@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+rsconnect/
+meal_forecast_xgboost.Rproj
+output/
+.profile
+__pycache__/
+venv_shiny_app/
