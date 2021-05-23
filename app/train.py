@@ -185,12 +185,6 @@ def train_and_predict(column_to_predict, training_type, min_date, max_date, begi
             file.write('\n')
         file.close()
 
-    if training_type == "prophet":
-        preds = app.algorithms.prophet_train_and_predict(
-            column_to_predict,
-            train_data,
-            prediction_input_data)
-
     if training_type == "benchmark":
         preds = app.algorithms.benchmark_train_and_predict(
             column_to_predict,
