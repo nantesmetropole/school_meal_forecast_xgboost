@@ -1,6 +1,27 @@
-reticulate::use_virtualenv("./venv_shiny_app", required = TRUE)
+# Set environment -------------------------------------------------------------
+# .Rprofile needs to be included in the project
+
+virtualenv_dir = Sys.getenv("VIRTUALENV_NAME")
+python_path = Sys.getenv("PYTHON_PATH")
+
+if (!reticulate::virtualenv_exists(envname = "venv_shiny_app")) {
+    reticulate::virtualenv_create(envname = virtualenv_dir, python = python_path)
+    reticulate::virtualenv_install(virtualenv_dir, packages = c("pandas==1.1.0",
+                                                                "numpy==1.19.1",
+                                                                "xgboost==1.1.1",
+                                                                "scikit-learn==0.23.1",
+                                                                "dask[dataframe]==0.19.4",
+                                                                "lunardate==0.2.0",
+                                                                "convertdate==2.2.1",
+                                                                "matplotlib==3.2.1",
+                                                                "python-dateutil==2.8.1"))
+}
+reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
+
+# Old ---------------------------------------------------------------------
 library(reticulate)
 library(shiny)
+library(DT)
 
 source_python("main.py")
 
@@ -74,8 +95,16 @@ ui <- fluidPage(
         ),
 
         # Show a plot of the generated distribution
-        mainPanel(
-           plotOutput("distPlot")
+        mainPanel('Architecture Info', 
+                  h3('Current architecture info'),
+                  '(These values will change when app is run locally vs on Shinyapps.io)',
+                  hr(),
+                  DT::dataTableOutput('sysinfo'),
+                  br(),
+                  verbatimTextOutput('which_python'),
+                  verbatimTextOutput('python_version'),
+                  verbatimTextOutput('ret_env_var'),
+                  verbatimTextOutput('venv_root')
         )
     )
 )
@@ -90,6 +119,31 @@ server <- function(input, output) {
 
         # draw the histogram with the specified number of bins
         hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    })
+    # Display info about the system running the code
+    output$sysinfo <- DT::renderDataTable({
+        s = Sys.info()
+        df = data.frame(Info_Field = names(s),
+                        Current_System_Setting = as.character(s))
+        return(datatable(df, rownames = F, selection = 'none',
+                         style = 'bootstrap', filter = 'none', options = list(dom = 't')))
+    })
+    # Display system path to python
+    output$which_python <- renderText({
+        paste0('which python: ', Sys.which('python'))
+    })
+    # Display Python version
+    output$python_version <- renderText({
+        rr = reticulate::py_discover_config(use_environment = 'python35_env')
+        paste0('Python version: ', rr$version)
+    })
+    # Display RETICULATE_PYTHON
+    output$ret_env_var <- renderText({
+        paste0('RETICULATE_PYTHON: ', Sys.getenv('RETICULATE_PYTHON'))
+    })
+    # Display virtualenv root
+    output$venv_root <- renderText({
+        paste0('virtualenv root: ', reticulate::virtualenv_root())
     })
 }
 
