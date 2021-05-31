@@ -19,4 +19,3 @@ if (!reticulate::virtualenv_exists(envname = "./venv_shiny_app")) {
                                               "python-dateutil==2.8.1"))
 }
 
-# test
