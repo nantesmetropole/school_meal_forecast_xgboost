@@ -1,6 +1,6 @@
 # Set environment -------------------------------------------------------------
 # .Rprofile needs to be included in the project
-# test
+
 virtualenv_dir = Sys.getenv("VIRTUALENV_NAME")
 python_path = Sys.getenv("PYTHON_PATH")
 
