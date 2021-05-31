@@ -55,7 +55,7 @@ run_verteego <- function(begin_date = '2017-09-30',
     results_by_cafeteria <<- readr::read_csv(path_results_by_cafeteria)
 }
 
-run_verteego()
+# run_verteego()
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
