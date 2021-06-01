@@ -1,5 +1,5 @@
 # Set environment -------------------------------------------------------------
-# .Rprofile needs to be included in the project
+# Appropriate .Rprofile needs to be included in the project folder
 
 virtualenv_dir = Sys.getenv("VIRTUALENV_NAME")
 python_path = Sys.getenv("PYTHON_PATH")
@@ -18,7 +18,8 @@ if (!reticulate::virtualenv_exists(envname = "venv_shiny_app")) {
 }
 reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
-# Old ---------------------------------------------------------------------
+# Libraries -------------------------------------------------------------------
+# Consider removing to use only library::function()
 library(reticulate)
 library(shiny)
 library(DT)
@@ -61,14 +62,14 @@ run_verteego <- function(begin_date = '2017-09-30',
     run(args)
     # On récupère les trois outputs générés par la fonction
     path_results_global <- paste0("output/",
-                                  paste("results_global", column_to_predict, 
-                                        begin_date, end_date, sep = "_"), 
+                                  paste("results_global", column_to_predict,
+                                        begin_date, end_date, sep = "_"),
                                   ".csv")
     path_results_detailed <- paste0("output/",
-                                    paste("results_detailed", column_to_predict, 
+                                    paste("results_detailed", column_to_predict,
                                           begin_date, end_date, sep = "_"), ".csv")
     path_results_by_cafeteria <- paste0("output/",
-                                        paste("results_by_cafeteria", column_to_predict, 
+                                        paste("results_by_cafeteria", column_to_predict,
                                               begin_date, end_date, sep = "_"), ".csv")
     # Le signe '<<-' permet de conserver les objets hors du contexte d'exécution
     results_global <<- readr::read_csv(path_results_global)
@@ -78,47 +79,98 @@ run_verteego <- function(begin_date = '2017-09-30',
 
 # run_verteego()
 
-# Define UI for application that draws a histogram
+
+# UI ----------------------------------------------------------------------
 ui <- fluidPage(
-
+    
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
+    titlePanel("Prévision des repas dans les cantines"),
+    
+    # Show a plot of the generated distribution
+    tabsetPanel(
 
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
+## Result visualization ----------------------------------------------------
+        tabPanel("Consulter"),
 
-        # Show a plot of the generated distribution
-        mainPanel('Architecture Info', 
-                  h3('Current architecture info'),
-                  '(These values will change when app is run locally vs on Shinyapps.io)',
-                  hr(),
-                  DT::dataTableOutput('sysinfo'),
-                  br(),
-                  verbatimTextOutput('which_python'),
-                  verbatimTextOutput('python_version'),
-                  verbatimTextOutput('ret_env_var'),
-                  verbatimTextOutput('venv_root')
+## Data visualization ------------------------------------------------------
+        tabPanel("Charger"),
+
+## Model parameters --------------------------------------------------------
+        tabPanel("Générer",
+                 selectInput("column_to_predict", "Variable que l'on cherche à prédire :",
+                             c("Fréquentation réelle" = "reel", 
+                               "Commandes par les écoles" = "prevision")),
+                 dateRangeInput("daterange_forecast", "Période à prévoir :",
+                                start  = "2017-09-30",
+                                end    = "2017-12-15",
+                                min    = "2012-01-01",
+                                max    = "2021-12-31",
+                                format = "dd/mm/yyyy",
+                                separator = " - ",
+                                language = "fr",
+                                weekstart = 1),
+                 dateInput("start_training_date", "Date de début d'apprentissage :",
+                          value =  "2012-09-01",
+                          min    = "2012-01-01",
+                          max    = "2021-12-31",
+                          format = "dd/mm/yyyy",
+                          language = "fr",
+                          weekstart = 1),
+                 sliderInput("confidence", "Niveau de confiance :",
+                             min = 0, max = 1, value = 0.9, step = 0.01),
+                 sliderInput("week_latency", "Dernières semaines à exclure pour l'apprentissage :",
+                             min = 0, max = 20, value = 10, step = 1, round = TRUE),
+                 selectInput("training_type", "Algorithme de prédiction :",
+                             c("XGBoost simple" = "xgb", 
+                               "XGBoost avec intervalle de confiance" = "xgb_interval")),
+                 checkboxGroupInput("model_options", "Autres options",
+                                    c("Réexécuter la préparation des données" = "preprocesing", 
+                                      "Ne pas prédire les jours sans école" = "remove_no_school", 
+                                      "Omettre les valeurs extrèmes (3 sigma)" = "remove_outliers"),
+                                      selected = c("preprocesing", "remove_no_school", "remove_outliers")),
+                 actionButton("launch_model", "Lancer la prédiction")),
+
+
+
+# preprocessing=TRUE,
+# remove_no_school=TRUE,
+# remove_outliers=TRUE,
+
+
+##  Server parameters --------------------------------------------------------
+        tabPanel("Paramétrer", 
+                 h3('Current architecture info'),
+                 '(These values will change when app is run locally vs on Shinyapps.io)',
+                 hr(),
+                 DT::dataTableOutput('sysinfo'),
+                 br(),
+                 verbatimTextOutput('which_python'),
+                 verbatimTextOutput('python_version'),
+                 verbatimTextOutput('ret_env_var'),
+                 verbatimTextOutput('venv_root')
         )
+        
+        
     )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    
+    
+    observeEvent(input$launch_model, {
+        run_verteego(
+            begin_date = as.character(input$daterange_forecast[1]),
+            column_to_predict =  input$column_to_predict,
+            confidence = input$confidence,
+            end_date = as.character(input$daterange_forecast[2]),
+            preprocessing = "preprocessing" %in% input$model_options,
+            remove_no_school = "remove_no_school" %in% input$model_options,
+            remove_outliers = "remove_outliers" %in% input$model_options,
+            start_training_date = as.character(input$start_training_date),
+            training_type = input$training_type,
+            weeks_latency = input$week_latency
+        )
     })
     # Display info about the system running the code
     output$sysinfo <- DT::renderDataTable({
@@ -130,12 +182,12 @@ server <- function(input, output) {
     })
     # Display system path to python
     output$which_python <- renderText({
-        paste0('which python: ', Sys.which('python'))
+        paste0("Emplacement de Python : ", Sys.which('python'))
     })
     # Display Python version
     output$python_version <- renderText({
         rr = reticulate::py_discover_config(use_environment = 'python35_env')
-        paste0('Python version: ', rr$version)
+        paste0("Version de Python : ", rr$version)
     })
     # Display RETICULATE_PYTHON
     output$ret_env_var <- renderText({
@@ -143,7 +195,7 @@ server <- function(input, output) {
     })
     # Display virtualenv root
     output$venv_root <- renderText({
-        paste0('virtualenv root: ', reticulate::virtualenv_root())
+        paste0("Emplacement de l\'environnement virtuel :", reticulate::virtualenv_root())
     })
 }
 
