@@ -19,11 +19,8 @@ if (!reticulate::virtualenv_exists(envname = "venv_shiny_app")) {
 reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
 # Libraries -------------------------------------------------------------------
-# Consider removing to use only library::function()
-library(reticulate)
 library(shiny)
-library(DT)
-
+# packages: reticulate, purrr, DT, readr, arrow
 source_python("main.py")
 
 # Paramétrage d'une client R pour le modèle en python -------------------------
@@ -77,8 +74,12 @@ run_verteego <- function(begin_date = '2017-09-30',
     results_by_cafeteria <<- readr::read_csv(path_results_by_cafeteria)
 }
 
-# run_verteego()
-
+load_results <- function(pattern = "^results_by_cafeteria.*csv$") {
+    dir("output", pattern = pattern, full.names = TRUE) %>%
+        dplyr::tibble(filename = ., created = file.info(.)$ctime) %>%
+        mutate(file_contents = purrr::map(filename, ~ arrow::read_csv_arrow(.))) %>%
+        tidyr::unnest(cols = c(file_contents))
+}
 
 # UI ----------------------------------------------------------------------
 ui <- fluidPage(
