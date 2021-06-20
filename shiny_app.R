@@ -20,8 +20,10 @@ reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
 # Libraries -------------------------------------------------------------------
 library(shiny)
+library(reticulate)
+library(DT)
 # packages: reticulate, purrr, DT, readr, arrow
-source_python("main.py")
+reticulate::source_python("main.py")
 
 # Paramétrage d'une client R pour le modèle en python -------------------------
 
@@ -77,9 +79,10 @@ run_verteego <- function(begin_date = '2017-09-30',
 load_results <- function(pattern = "^results_by_cafeteria.*csv$") {
     dir("output", pattern = pattern, full.names = TRUE) %>%
         dplyr::tibble(filename = ., created = file.info(.)$ctime) %>%
-        mutate(file_contents = purrr::map(filename, ~ arrow::read_csv_arrow(.))) %>%
+        dplyr::mutate(file_contents = purrr::map(filename, ~ arrow::read_csv_arrow(.))) %>%
         tidyr::unnest(cols = c(file_contents))
 }
+
 
 # UI ----------------------------------------------------------------------
 ui <- fluidPage(
@@ -91,13 +94,21 @@ ui <- fluidPage(
     tabsetPanel(
 
 ## Result visualization ----------------------------------------------------
-        tabPanel("Consulter"),
+        tabPanel("Consulter des prévisions",
+                 sidebarLayout(
+                     sidebarPanel(selectInput("etab", "Choisir un établissement",
+                                              choices = c("foo", "bar"))),
+                     mainPanel(
+                         DT::dataTableOutput("out")
+                     )
+                     )
+                 ),
 
 ## Data visualization ------------------------------------------------------
-        tabPanel("Charger"),
+        tabPanel("Charger des données"),
 
 ## Model parameters --------------------------------------------------------
-        tabPanel("Générer",
+        tabPanel("Générer des prévisions",
                  selectInput("column_to_predict", "Variable que l'on cherche à prédire :",
                              c("Fréquentation réelle" = "reel", 
                                "Commandes par les écoles" = "prevision")),
@@ -138,8 +149,10 @@ ui <- fluidPage(
 # remove_outliers=TRUE,
 
 
+# Server ------------------------------------------------------------------
+
 ##  Server parameters --------------------------------------------------------
-        tabPanel("Paramétrer", 
+        tabPanel("Informations", 
                  h3('Current architecture info'),
                  '(These values will change when app is run locally vs on Shinyapps.io)',
                  hr(),
@@ -158,7 +171,16 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
     
+
+# Display data ------------------------------------------------------------
+
     
+    out_tb <- load_results()
+    output$out <- renderDataTable({
+        DT::datatable(out_tb) 
+        })
+
+## Launch model ------------------------------------------------------------
     observeEvent(input$launch_model, {
         run_verteego(
             begin_date = as.character(input$daterange_forecast[1]),
@@ -173,12 +195,15 @@ server <- function(input, output) {
             weeks_latency = input$week_latency
         )
     })
-    # Display info about the system running the code
+    
+
+## System info -------------------------------------------------------------
+    
     output$sysinfo <- DT::renderDataTable({
         s = Sys.info()
         df = data.frame(Info_Field = names(s),
                         Current_System_Setting = as.character(s))
-        return(datatable(df, rownames = F, selection = 'none',
+        return(DT::datatable(df, rownames = F, selection = 'none',
                          style = 'bootstrap', filter = 'none', options = list(dom = 't')))
     })
     # Display system path to python
