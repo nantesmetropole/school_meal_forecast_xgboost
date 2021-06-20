@@ -19,18 +19,45 @@ if (!reticulate::virtualenv_exists(envname = "venv_shiny_app")) {
 reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
 # Libraries -------------------------------------------------------------------
-library(shiny)
-library(reticulate)
-library(DT)
-# packages: reticulate, purrr, DT, readr, arrow
-reticulate::source_python("main.py")
+# A function to install required functions
+install_load <- function(mypkg, to_load = FALSE) {
+    for (i in seq_along(mypkg)) {
+        if (!is.element(mypkg[i], installed.packages()[,1])) {
+            install.packages(mypkg[i], repos="http://cran.irsn.fr/")
+        }
+        if (to_load) { library(mypkg[i], character.only=TRUE)  }
+    }
+}
+pkgs_to_load <- "shiny"
+pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", "data.table")
 
-# Paramétrage d'une client R pour le modèle en python -------------------------
+
+# Parameters --------------------------------------------------------------
+data_path <- "tests/data"
+index <- tribble(
+    ~name,          ~path,
+    "schoolyears",  "calculators/annees_scolaires.csv",
+    "strikes",      "calculators/greves.csv",
+    "holidays",     "calculators/jours_feries.csv",
+    "vacs",         "calculators/vacances.csv",
+    "cafets",       "raw/cantines.csv",            
+    "effs",         "raw/effectifs.csv",
+    "freqs",        "raw/frequentation.csv",
+    "menus",        "raw/menus_tous.csv",
+    "map_schools",  "mappings/mapping_ecoles_cantines.csv",
+    "map_freqs",    "mappings/mapping_frequentation_cantines.csv") %>%
+    mutate(path = paste(data_path, path, sep = "/"))
+
+# install_load(pkgs_to_load, to_load = TRUE)
+install_load(pkgs_not_load)
+
+# Python functions and R bindings ---------------------------------------------------
+reticulate::source_python("main.py")
 
 # Cette fonction exécute la fonction 'run' avec les paramètres par défaut du readme
 run_verteego <- function(begin_date = '2017-09-30',
                          column_to_predict = 'reel', 
-                         data_path = 'tests/data',
+                         data_path = data_path,
                          confidence = 0.90,
                          end_date = '2017-12-15',
                          prediction_mode=TRUE,
@@ -76,11 +103,20 @@ run_verteego <- function(begin_date = '2017-09-30',
     results_by_cafeteria <<- readr::read_csv(path_results_by_cafeteria)
 }
 
-load_results <- function(pattern = "^results_by_cafeteria.*csv$") {
-    dir("output", pattern = pattern, full.names = TRUE) %>%
+# R functions -------------------------------------------------------------
+
+# A function to load the outputs of the model forecasts
+load_results <- function(folder = "output", pattern = "^results_by_cafeteria.*csv$") {
+    dir(folder, pattern = pattern, full.names = TRUE) %>%
         dplyr::tibble(filename = ., created = file.info(.)$ctime) %>%
         dplyr::mutate(file_contents = purrr::map(filename, ~ arrow::read_csv_arrow(.))) %>%
         tidyr::unnest(cols = c(file_contents))
+}
+
+# A function to load the input data. Defaults to the index specified above
+load_data <- function(name = index$name, path = index$path) {
+    dt <- purrr::map(path, ~ arrow::read_csv_arrow(.)) %>%
+        purrr::set_names(name)
 }
 
 
@@ -170,14 +206,15 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+
     
 
 # Display data ------------------------------------------------------------
-
+    prev <- load_results()
+    dt <- load_data()
     
-    out_tb <- load_results()
     output$out <- renderDataTable({
-        DT::datatable(out_tb) 
+        DT::datatable(prev) 
         })
 
 ## Launch model ------------------------------------------------------------
