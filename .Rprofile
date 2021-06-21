@@ -3,7 +3,7 @@
 
 # Edit this name if desired when starting a new app
 VIRTUALENV_NAME = 'venv_shiny_app'
-
+py_ver <- "3.7.9"
 
 # ------------------------- Settings (Do not edit) -------------------------- #
 
@@ -20,6 +20,22 @@ if (Sys.info()[['user']] == 'shiny'){
   Sys.setenv(PYTHON_PATH = '/opt/python/3.7.7/bin/python3')
   Sys.setenv(VIRTUALENV_NAME = paste0(VIRTUALENV_NAME, '/')) # include '/' => installs into rstudio-connect/apps/
   Sys.setenv(RETICULATE_PYTHON = paste0(VIRTUALENV_NAME, '/bin/python'))
+  
+} else if (Sys.info()[['sysname']] == 'Windows') {
+  py_ver <- "3.7.9"
+  py_loc <- paste0(Sys.getenv()["LOCALAPPDATA"],
+                   "\\r-reticulate\\r-reticulate\\pyenv\\pyenv-win\\versions\\",
+                   py_ver,
+                   "\\python.exe")
+  
+  if (!file.exists(py_loc)) {
+    reticulate::install_python(version = py_ver)
+    print("Installing the appropriate Python version")
+    .rs.restartR()
+    print("Installed, restarting R")
+  }
+  Sys.setenv(PYTHON_PATH = py_loc)
+  Sys.setenv(VIRTUALENV_NAME = VIRTUALENV_NAME)
   
 } else {
   

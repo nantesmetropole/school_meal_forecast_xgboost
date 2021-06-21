@@ -1,6 +1,6 @@
 # Set environment -------------------------------------------------------------
 # Appropriate .Rprofile needs to be included in the project folder
-
+# reticulate::virtualenv_remove("venv_shiny_app")
 virtualenv_dir = Sys.getenv("VIRTUALENV_NAME")
 python_path = Sys.getenv("PYTHON_PATH")
 
@@ -55,11 +55,12 @@ install_load(pkgs_not_load)
 
 # Python functions and R bindings ---------------------------------------------------
 reticulate::source_python("main.py")
+prepare_arborescence()
 
 # Cette fonction exécute la fonction 'run' avec les paramètres par défaut du readme
 run_verteego <- function(begin_date = '2017-09-30',
                          column_to_predict = 'reel', 
-                         data_path = data_path,
+                         data_path = "tests/data",
                          confidence = 0.90,
                          end_date = '2017-12-15',
                          prediction_mode=TRUE,
@@ -71,7 +72,7 @@ run_verteego <- function(begin_date = '2017-09-30',
                          training_type='xgb',
                          weeks_latency=10) {
     # On passe les arguments à pyton au travers d'une classe
-    args <- PyClass(classname = "arguments", 
+    args <- reticulate::PyClass(classname = "arguments", 
                     defs = list(
                         begin_date = begin_date,
                         column_to_predict = column_to_predict,
@@ -86,7 +87,6 @@ run_verteego <- function(begin_date = '2017-09-30',
                         start_training_date = start_training_date,
                         training_type = training_type,
                         weeks_latency = weeks_latency))
-    prepare_arborescence()
     run(args)
     # On récupère les trois outputs générés par la fonction
     path_results_global <- paste0("output/",
@@ -174,17 +174,12 @@ ui <- fluidPage(
                              c("XGBoost simple" = "xgb", 
                                "XGBoost avec intervalle de confiance" = "xgb_interval")),
                  checkboxGroupInput("model_options", "Autres options",
-                                    c("Réexécuter la préparation des données" = "preprocesing", 
+                                    c("Réexécuter la préparation des données" = "preprocessing", 
                                       "Ne pas prédire les jours sans école" = "remove_no_school", 
                                       "Omettre les valeurs extrèmes (3 sigma)" = "remove_outliers"),
-                                      selected = c("preprocesing", "remove_no_school", "remove_outliers")),
+                                      selected = c("preprocessing", "remove_no_school", "remove_outliers")),
                  actionButton("launch_model", "Lancer la prédiction")),
 
-
-
-# preprocessing=TRUE,
-# remove_no_school=TRUE,
-# remove_outliers=TRUE,
 
 ##  UI display of server parameters --------------------------------------------------
         tabPanel("Informations", 
