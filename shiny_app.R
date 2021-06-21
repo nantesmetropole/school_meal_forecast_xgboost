@@ -88,21 +88,6 @@ run_verteego <- function(begin_date = '2017-09-30',
                         training_type = training_type,
                         weeks_latency = weeks_latency))
     run(args)
-    # On récupère les trois outputs générés par la fonction
-    path_results_global <- paste0("output/",
-                                  paste("results_global", column_to_predict,
-                                        begin_date, end_date, sep = "_"),
-                                  ".csv")
-    path_results_detailed <- paste0("output/",
-                                    paste("results_detailed", column_to_predict,
-                                          begin_date, end_date, sep = "_"), ".csv")
-    path_results_by_cafeteria <- paste0("output/",
-                                        paste("results_by_cafeteria", column_to_predict,
-                                              begin_date, end_date, sep = "_"), ".csv")
-    # Le signe '<<-' permet de conserver les objets hors du contexte d'exécution
-    results_global <<- readr::read_csv(path_results_global)
-    results_detailed <<- readr::read_csv(path_results_detailed)
-    results_by_cafeteria <<- readr::read_csv(path_results_by_cafeteria)
 }
 
 # R functions -------------------------------------------------------------
@@ -207,11 +192,11 @@ ui <- fluidPage(
 server <- function(input, output) {
 
 # Display data ------------------------------------------------------------
-    prev <- load_results()
-    dt <- load_data()
+    dt <- reactiveValues(prev = load_results(),
+                         src = load_data())
     
      output$out <- DT::renderDataTable({
-        DT::datatable(prev)
+        DT::datatable(dt$prev)
         })
     # output$out <- DT::datatable(prev) 
 
@@ -229,6 +214,7 @@ server <- function(input, output) {
             training_type = input$training_type,
             weeks_latency = input$week_latency
         )
+        dt$prev <- load_results()
     })
     
 
