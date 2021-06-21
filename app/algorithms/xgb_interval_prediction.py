@@ -126,7 +126,7 @@ def xgb_interval_train_and_predict(column_to_predict, train_data, evaluation_dat
     feature_importance_list = evaluate_feature_importance(evaluation_data_x, confidence_upper_bound_model)
     
     ## Generates errors on Windows with Reticulate
-    # plot_curve(confidence_upper_bound_model.evals_result(), "nantes_metropole_xgb")
+    plot_curve(confidence_upper_bound_model.evals_result(), "nantes_metropole_xgb")
 
     return evaluation_data, feature_importance_list
 

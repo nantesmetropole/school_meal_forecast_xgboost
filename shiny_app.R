@@ -178,8 +178,6 @@ ui <- fluidPage(
                  verbatimTextOutput('ret_env_var'),
                  verbatimTextOutput('venv_root')
         )
-        
-        
     )
 )
 
