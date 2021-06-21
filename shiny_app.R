@@ -19,6 +19,8 @@ if (!reticulate::virtualenv_exists(envname = "venv_shiny_app")) {
 reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
 # Libraries -------------------------------------------------------------------
+library(magrittr)
+
 # A function to install required functions
 install_load <- function(mypkg, to_load = FALSE) {
     for (i in seq_along(mypkg)) {
@@ -34,7 +36,7 @@ pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", "data.
 
 # Parameters --------------------------------------------------------------
 data_path <- "tests/data"
-index <- tribble(
+index <- dplyr::tribble(
     ~name,          ~path,
     "schoolyears",  "calculators/annees_scolaires.csv",
     "strikes",      "calculators/greves.csv",
@@ -46,7 +48,7 @@ index <- tribble(
     "menus",        "raw/menus_tous.csv",
     "map_schools",  "mappings/mapping_ecoles_cantines.csv",
     "map_freqs",    "mappings/mapping_frequentation_cantines.csv") %>%
-    mutate(path = paste(data_path, path, sep = "/"))
+    dplyr::mutate(path = paste(data_path, path, sep = "/"))
 
 # install_load(pkgs_to_load, to_load = TRUE)
 install_load(pkgs_not_load)
@@ -71,17 +73,17 @@ run_verteego <- function(begin_date = '2017-09-30',
     # On passe les arguments à pyton au travers d'une classe
     args <- PyClass(classname = "arguments", 
                     defs = list(
-                        begin_date = begin_date, 
-                        column_to_predict = column_to_predict, 
-                        data_path = data_path, 
+                        begin_date = begin_date,
+                        column_to_predict = column_to_predict,
+                        data_path = data_path,
                         confidence = confidence,
-                        end_date = end_date, 
-                        prediction_mode = prediction_mode, 
-                        preprocessing = preprocessing, 
-                        remove_no_school = remove_no_school, 
-                        remove_outliers = remove_outliers, 
-                        school_cafeteria = school_cafeteria, 
-                        start_training_date = start_training_date, 
+                        end_date = end_date,
+                        prediction_mode = prediction_mode,
+                        preprocessing = preprocessing,
+                        remove_no_school = remove_no_school,
+                        remove_outliers = remove_outliers,
+                        school_cafeteria = school_cafeteria,
+                        start_training_date = start_training_date,
                         training_type = training_type,
                         weeks_latency = weeks_latency))
     prepare_arborescence()
@@ -106,7 +108,7 @@ run_verteego <- function(begin_date = '2017-09-30',
 # R functions -------------------------------------------------------------
 
 # A function to load the outputs of the model forecasts
-load_results <- function(folder = "output", pattern = "^results_by_cafeteria.*csv$") {
+load_results <- function(folder = "output", pattern = "results_by_cafeteria.*csv") {
     dir(folder, pattern = pattern, full.names = TRUE) %>%
         dplyr::tibble(filename = ., created = file.info(.)$ctime) %>%
         dplyr::mutate(file_contents = purrr::map(filename, ~ arrow::read_csv_arrow(.))) %>%
@@ -184,10 +186,7 @@ ui <- fluidPage(
 # remove_no_school=TRUE,
 # remove_outliers=TRUE,
 
-
-# Server ------------------------------------------------------------------
-
-##  Server parameters --------------------------------------------------------
+##  UI display of server parameters --------------------------------------------------
         tabPanel("Informations", 
                  h3('Current architecture info'),
                  '(These values will change when app is run locally vs on Shinyapps.io)',
@@ -204,18 +203,22 @@ ui <- fluidPage(
     )
 )
 
+
+
+# Server ------------------------------------------------------------------
+
+
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
-    
 
 # Display data ------------------------------------------------------------
     prev <- load_results()
     dt <- load_data()
     
-    output$out <- renderDataTable({
-        DT::datatable(prev) 
+     output$out <- DT::renderDataTable({
+        DT::datatable(prev)
         })
+    # output$out <- DT::datatable(prev) 
 
 ## Launch model ------------------------------------------------------------
     observeEvent(input$launch_model, {
