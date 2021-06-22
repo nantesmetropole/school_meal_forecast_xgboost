@@ -8,4 +8,5 @@ meal_forecast_xgboost.Rproj
 output/
 .profile
 __pycache__/
-venv_shiny_app/
+reticulate_setup.R
+reprex.*
