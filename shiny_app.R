@@ -106,6 +106,22 @@ load_data <- function(name = index$name, path = index$path) {
         purrr::set_names(name)
 }
 
+# A function to generate inter-vacation periods from the vacation calendar
+gen_piv <- function(vacations) {
+    vacations %>%
+        dplyr::filter(vacances_nom != "Pont de l'Ascension") %>%
+        unique() %>%
+        dplyr::arrange(date_debut) %>%
+        dplyr::mutate(piv_nom2 = stringr::str_remove(vacances_nom, 
+                                                     "Vacances (d'|de la |de )"),
+                      piv_nom1 = dplyr::lag(piv_nom2, 1),
+                      `Période` = paste(piv_nom1, piv_nom2, sep = "-"),
+                      `Début` = dplyr::lag(date_fin, 1),
+                      Fin = date_debut) %>%
+        dplyr::filter(!is.na(piv_nom1)) %>%
+        dplyr::select(`Année` = annee_scolaire,`Période`, `Début`, `Fin`)
+}
+
 
 # UI ----------------------------------------------------------------------
 ui <- fluidPage(
@@ -120,7 +136,13 @@ ui <- fluidPage(
         tabPanel("Consulter des prévisions",
                  sidebarLayout(
                      sidebarPanel(selectInput("etab", "Choisir un établissement",
-                                              choices = c("foo", "bar"))),
+                                              choices = c("foo", "bar")),
+                                  selectInput("filt_year", "Année scolaire",
+                                              choices = unique(piv["Année"])),
+                                  selectInput("piv", "Période",
+                                              choices = unique(piv["Période"]))),
+                     # sidebarPanel(selectInput("piv", "Période",
+                     #                          choices = unique(dt$piv$`Période`))),
                      mainPanel(
                          DT::dataTableOutput("out")
                      )
@@ -189,10 +211,26 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
+
+# Testing -----------------------------------------------------------------
+    # library(dplyr)
+    # library(stringr)
+    # src <- load_data()
+    
+    
+
+     
+    
+    
 # Display data ------------------------------------------------------------
+    
     dt <- reactiveValues(prev = load_results(),
                          src = load_data())
-    
+    piv <- load_data(name = "vacs", 
+                      path = "tests/data/calculators/vacances.csv")[[1]] %>%
+        gen_piv()
+
+   
      output$out <- DT::renderDataTable({
         DT::datatable(dt$prev)
         })
