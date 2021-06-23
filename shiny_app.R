@@ -119,7 +119,11 @@ gen_piv <- function(vacations) {
                       `Début` = dplyr::lag(date_fin, 1),
                       Fin = date_debut) %>%
         dplyr::filter(!is.na(piv_nom1)) %>%
-        dplyr::select(`Année` = annee_scolaire,`Période`, `Début`, `Fin`)
+        dplyr::select(`Année` = annee_scolaire,`Période`, `Début`, `Fin`) %>%
+        dplyr::mutate(`Période` = factor(`Période`, c(
+            "Ete-Toussaint", "Toussaint-Noel", "Noel-Hiver", "Hiver-Avril",
+            "Avril-Ete"
+        )))
 }
 
 
@@ -137,15 +141,12 @@ ui <- fluidPage(
                  sidebarLayout(
                      sidebarPanel(selectInput("etab", "Choisir un établissement",
                                               choices = c("foo", "bar")),
-                                  selectInput("filt_year", "Année scolaire",
-                                              choices = unique(piv["Année"])),
-                                  selectInput("piv", "Période",
-                                              choices = unique(piv["Période"]))),
-                     # sidebarPanel(selectInput("piv", "Période",
-                     #                          choices = unique(dt$piv$`Période`))),
+                                  uiOutput("select_period"),
+                                  uiOutput("select_year")),
                      mainPanel(
-                         DT::dataTableOutput("out")
-                     )
+                        # textOutput("filters"),
+                         DT::dataTableOutput("filters")
+                         )
                      )
                  ),
 
@@ -224,17 +225,41 @@ server <- function(input, output) {
     
 # Display data ------------------------------------------------------------
     
-    dt <- reactiveValues(prev = load_results(),
-                         src = load_data())
-    piv <- load_data(name = "vacs", 
-                      path = "tests/data/calculators/vacances.csv")[[1]] %>%
-        gen_piv()
-
+    prev <- reactive({ load_results() })
+    dt <- reactive({ load_data() })
+    vacs <- reactive({ return(dt()$vacs) })
+    pivs <- reactive({ gen_piv(vacs()) })
+    
+    
+    output$select_period <- renderUI({
+        selectInput("select_period", "Période",
+                    choices = pivs()$`Période`)
+    })
+    output$select_year <- renderUI({
+        selectInput("select_year", "Année",
+                    choices = pivs()$`Année`)
+    })
    
      output$out <- DT::renderDataTable({
-        DT::datatable(dt$prev)
+         DT::datatable(prev())
         })
-    # output$out <- DT::datatable(prev) 
+     
+     output$filters <- DT::renderDataTable({
+         period <- input$select_period
+         year <- input$select_year
+         dates <- pivs() %>%
+             dplyr::filter(`Période` == period & `Année` == year) %>%
+             dplyr::select(`Début`, `Fin`)
+         date_start <- lubridate::ymd(dates[[1]])
+         date_end <- lubridate::ymd(dates[[2]])
+         graph_title <- paste(period, year)
+         filtered_prev <- prev() %>%
+             dplyr::mutate(date_str = lubridate::ymd(date_str)) %>%
+             dplyr::filter(date_str >= date_start & date_str <= date_end) %>%
+             DT::datatable()
+             
+     })
+
 
 ## Launch model ------------------------------------------------------------
     observeEvent(input$launch_model, {
