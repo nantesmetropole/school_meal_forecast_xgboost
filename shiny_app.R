@@ -31,7 +31,8 @@ install_load <- function(mypkg, to_load = FALSE) {
     }
 }
 pkgs_to_load <- "shiny"
-pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", "data.table")
+pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", 
+                   "data.table", "stringr", "lubridate")
 
 
 # Parameters --------------------------------------------------------------
@@ -139,10 +140,11 @@ ui <- fluidPage(
 ## Result visualization ----------------------------------------------------
         tabPanel("Consulter des prévisions",
                  sidebarLayout(
-                     sidebarPanel(selectInput("etab", "Choisir un établissement",
-                                              choices = c("foo", "bar")),
+                     sidebarPanel(uiOutput("select_cafet"),
                                   uiOutput("select_period"),
-                                  uiOutput("select_year")),
+                                  uiOutput("select_year"),
+                                  downloadButton("dwn_filtered", 
+                                               "Télécharger les données")),
                      mainPanel(
                         # textOutput("filters"),
                          DT::dataTableOutput("filters")
@@ -212,53 +214,71 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
-
-# Testing -----------------------------------------------------------------
-    # library(dplyr)
-    # library(stringr)
-    # src <- load_data()
+# Reactive values for result display -----------------------------------
     
     
-
-     
-    
-    
-# Display data ------------------------------------------------------------
-    
-    prev <- reactive({ load_results() })
-    dt <- reactive({ load_data() })
-    vacs <- reactive({ return(dt()$vacs) })
-    pivs <- reactive({ gen_piv(vacs()) })
+    prev <- reactive({ load_results() }) # Previsions
+    dt <- reactive({ load_data() }) # training data
+    vacs <- reactive({ return(dt()$vacs) }) # vacations
+    pivs <- reactive({ gen_piv(vacs()) }) # Period between vacations
+    cafets <- reactive({ c("Tous", # List of cafeteria
+                           levels(factor(prev()$cantine_nom))) })
+    periods <- reactive({ levels(pivs()$`Période`) }) # Name of the periods
+    years <- reactive({ # School years
+        levels(forcats::fct_rev(pivs()$`Année`)) 
+        })
+    selected_year <- reactive({ input$select_year })
+    selected_period <- reactive({ input$select_period })
+    selected_cafet <- reactive({ input$select_cafet })
+    selected_dates <- reactive({  
+        pivs() %>%
+            dplyr::filter(`Période` == selected_period() & 
+                              `Année` == selected_year()) %>%
+            dplyr::select(`Début`, `Fin`)
+        })
+    date_start <- reactive({ lubridate::ymd(selected_dates()[[1]]) })
+    date_end <- reactive({ lubridate::ymd(selected_dates()[[2]]) })
+    filtered_prev <- reactive({ # Filtering the prevision based on parameters
+        filtered <- prev() %>%
+            dplyr::mutate(date_str = lubridate::ymd(date_str)) %>%
+            dplyr::filter(date_str >= date_start() & date_str <= date_end())
+        if (selected_cafet() != "Tous") {
+            filtered <- filtered %>%
+                dplyr::filter(cantine_nom == selected_cafet())
+        }
+        return(filtered)
+    })
     
     
     output$select_period <- renderUI({
         selectInput("select_period", "Période",
-                    choices = pivs()$`Période`)
+                    choices = periods())
     })
     output$select_year <- renderUI({
         selectInput("select_year", "Année",
-                    choices = pivs()$`Année`)
+                    choices = years())
     })
-   
-     output$out <- DT::renderDataTable({
-         DT::datatable(prev())
-        })
+    output$select_cafet <- renderUI({
+        selectInput("select_cafet", "Établissement",
+                    choices = cafets())
+    })
      
      output$filters <- DT::renderDataTable({
-         period <- input$select_period
-         year <- input$select_year
-         dates <- pivs() %>%
-             dplyr::filter(`Période` == period & `Année` == year) %>%
-             dplyr::select(`Début`, `Fin`)
-         date_start <- lubridate::ymd(dates[[1]])
-         date_end <- lubridate::ymd(dates[[2]])
-         graph_title <- paste(period, year)
-         filtered_prev <- prev() %>%
-             dplyr::mutate(date_str = lubridate::ymd(date_str)) %>%
-             dplyr::filter(date_str >= date_start & date_str <= date_end) %>%
-             DT::datatable()
-             
+         DT::datatable(filtered_prev())
      })
+     
+     output$dwn_filtered <- downloadHandler(
+         filename = function() {
+             paste("previsions_", 
+                  input$select_period, "_", 
+                  input$select_year, "_",
+                  input$select_cafet, ".csv", sep="")
+         },
+         content = function(file) {
+             write.csv(filtered_prev(), file)
+         }
+     )
+     
 
 
 ## Launch model ------------------------------------------------------------
@@ -277,6 +297,7 @@ server <- function(input, output) {
         )
         dt$prev <- load_results()
     })
+    
     
 
 ## System info -------------------------------------------------------------
@@ -305,6 +326,7 @@ server <- function(input, output) {
     output$venv_root <- renderText({
         paste0("Emplacement de l\'environnement virtuel :", reticulate::virtualenv_root())
     })
+    
 }
 
 # Run the application 
