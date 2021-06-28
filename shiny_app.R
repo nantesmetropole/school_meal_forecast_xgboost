@@ -32,7 +32,7 @@ install_load <- function(mypkg, to_load = FALSE) {
 }
 pkgs_to_load <- "shiny"
 pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", 
-                   "data.table", "stringr", "lubridate")
+                   "data.table", "stringr", "lubridate", "plotly")
 
 
 # Parameters --------------------------------------------------------------
@@ -147,7 +147,9 @@ ui <- fluidPage(
                                                "Télécharger les données")),
                      mainPanel(
                         # textOutput("filters"),
-                         DT::dataTableOutput("filters")
+                         # DT::dataTableOutput("filters")
+                         # plotOutput("plot")
+                         plotly::plotlyOutput("plot")
                          )
                      )
                  ),
@@ -246,6 +248,9 @@ server <- function(input, output) {
             filtered <- filtered %>%
                 dplyr::filter(cantine_nom == selected_cafet())
         }
+        filtered <- filtered %>%
+            dplyr::group_by(Date = lubridate::ymd(date_str)) %>%
+            dplyr::summarise(Repas = sum(output, na.rm = TRUE))
         return(filtered)
     })
     
@@ -278,6 +283,17 @@ server <- function(input, output) {
              write.csv(filtered_prev(), file)
          }
      )
+     
+     output$plot <- plotly::renderPlotly({
+         static <- ggplot2::ggplot(filtered_prev(), 
+                ggplot2::aes(x = Date,
+                    y = Repas,
+                    xmin = min(Date), ymax = max(Date))) + 
+             ggplot2::geom_col()
+     plotly::ggplotly(static)
+     # static
+
+     })
      
 
 
