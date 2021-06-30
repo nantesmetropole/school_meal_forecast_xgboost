@@ -290,7 +290,8 @@ server <- function(input, output) {
                     y = Repas,
                     xmin = min(Date), ymax = max(Date))) + 
              ggplot2::geom_col()
-     plotly::ggplotly(static)
+     plotly::ggplotly(static) %>%
+         plotly::config(displayModeBar = FALSE)
      # static
 
      })
