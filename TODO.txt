@@ -1,2 +1,4 @@
 Execution sur une école uniquement : trouver  le bug
-Résoudre le problème de plots /Matplotlib sous windows
+V Résoudre le problème de plots /Matplotlib sous windows
+Cumuler avec les autres données et comparer dans le graph
+Changer le layout de consultation : suivant / précédent

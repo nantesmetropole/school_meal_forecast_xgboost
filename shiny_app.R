@@ -283,7 +283,10 @@ server <- function(input, output) {
              write.csv(filtered_prev(), file)
          }
      )
-     
+
+## Consult results -----------------------------------------------------
+
+    
      output$plot <- plotly::renderPlotly({
          static <- ggplot2::ggplot(filtered_prev(), 
                 ggplot2::aes(x = Date,
