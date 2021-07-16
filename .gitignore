@@ -10,3 +10,4 @@ output/
 __pycache__/
 reticulate_setup.R
 reprex.*
+temp/
