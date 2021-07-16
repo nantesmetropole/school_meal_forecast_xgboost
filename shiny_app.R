@@ -32,7 +32,8 @@ install_load <- function(mypkg, to_load = FALSE) {
 }
 pkgs_to_load <- "shiny"
 pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", 
-                   "data.table", "stringr", "lubridate", "plotly")
+                   "data.table", "stringr", "lubridate", "plotly", "forcats",
+                   "shinyalert")
 
 
 # Parameters --------------------------------------------------------------
@@ -129,83 +130,79 @@ gen_piv <- function(vacations) {
 
 
 # UI ----------------------------------------------------------------------
-ui <- fluidPage(
-    
-    # Application title
-    titlePanel("Prévision des repas dans les cantines"),
-    
-    # Show a plot of the generated distribution
-    tabsetPanel(
-
-## Result visualization ----------------------------------------------------
-        tabPanel("Consulter des prévisions",
-                 sidebarLayout(
-                     sidebarPanel(uiOutput("select_cafet"),
-                                  uiOutput("select_period"),
-                                  uiOutput("select_year"),
-                                  downloadButton("dwn_filtered", 
-                                               "Télécharger les données")),
-                     mainPanel(
-                        # textOutput("filters"),
-                         # DT::dataTableOutput("filters")
-                         # plotOutput("plot")
-                         plotly::plotlyOutput("plot")
-                         )
-                     )
-                 ),
-
-## Data visualization ------------------------------------------------------
-        tabPanel("Charger des données"),
-
-## Model parameters --------------------------------------------------------
-        tabPanel("Générer des prévisions",
-                 selectInput("column_to_predict", "Variable que l'on cherche à prédire :",
-                             c("Fréquentation réelle" = "reel", 
-                               "Commandes par les écoles" = "prevision")),
-                 dateRangeInput("daterange_forecast", "Période à prévoir :",
-                                start  = "2017-09-30",
-                                end    = "2017-12-15",
-                                min    = "2012-01-01",
-                                max    = "2021-12-31",
-                                format = "dd/mm/yyyy",
-                                separator = " - ",
-                                language = "fr",
-                                weekstart = 1),
-                 dateInput("start_training_date", "Date de début d'apprentissage :",
-                          value =  "2012-09-01",
-                          min    = "2012-01-01",
-                          max    = "2021-12-31",
-                          format = "dd/mm/yyyy",
-                          language = "fr",
-                          weekstart = 1),
-                 sliderInput("confidence", "Niveau de confiance :",
-                             min = 0, max = 1, value = 0.9, step = 0.01),
-                 sliderInput("week_latency", "Dernières semaines à exclure pour l'apprentissage :",
-                             min = 0, max = 20, value = 10, step = 1, round = TRUE),
-                 selectInput("training_type", "Algorithme de prédiction :",
-                             c("XGBoost simple" = "xgb", 
-                               "XGBoost avec intervalle de confiance" = "xgb_interval")),
-                 checkboxGroupInput("model_options", "Autres options",
-                                    c("Réexécuter la préparation des données" = "preprocessing", 
-                                      "Ne pas prédire les jours sans école" = "remove_no_school", 
-                                      "Omettre les valeurs extrèmes (3 sigma)" = "remove_outliers"),
-                                      selected = c("preprocessing", "remove_no_school", "remove_outliers")),
-                 actionButton("launch_model", "Lancer la prédiction")),
-
-
-##  UI display of server parameters --------------------------------------------------
-        tabPanel("Informations", 
-                 h3('Current architecture info'),
-                 '(These values will change when app is run locally vs on Shinyapps.io)',
-                 hr(),
-                 DT::dataTableOutput('sysinfo'),
-                 br(),
-                 verbatimTextOutput('which_python'),
-                 verbatimTextOutput('python_version'),
-                 verbatimTextOutput('ret_env_var'),
-                 verbatimTextOutput('venv_root')
-        )
-    )
+ui <- navbarPage("Prévoir commandes et fréquentation",
+                 
+                 ## Result visualization ----------------------------------------------------
+                 tabPanel("Consulter des prévisions",
+                          shinyalert::useShinyalert(),
+                          fluidRow(
+                              column(1, actionButton("avant", 
+                                                     "<< Avant",
+                                                     style = "margin-top:25px; background-color: #E8E8E8")),
+                              column(2, uiOutput("select_period")),
+                              column(2, uiOutput("select_year")),
+                              column(1, actionButton("apres", 
+                                                     "Après >>",
+                                                     style = "margin-top:25px; background-color: #E8E8E8")),
+                              column(3, uiOutput("select_cafet"))),
+                          fluidRow(plotly::plotlyOutput("plot")),
+                          fluidRow(
+                              column(3, downloadButton("dwn_filtered", 
+                                                       "Télécharger les données affichées")))#☺,
+                              # column(3, downloadButton("dwn_filtered", 
+                              #                          "Télécharger toutes les données")))
+                          ),
+                 
+                 ## Data visualization ------------------------------------------------------
+                 tabPanel("Charger des données"),
+                 
+                 ## Model parameters --------------------------------------------------------
+                 tabPanel("Générer des prévisions",
+                          selectInput("column_to_predict", "Variable que l'on cherche à prédire :",
+                                      c("Fréquentation réelle" = "reel", 
+                                        "Commandes par les écoles" = "prevision")),
+                          dateRangeInput("daterange_forecast", "Période à prévoir :",
+                                         start  = "2017-09-30",
+                                         end    = "2017-12-15",
+                                         min    = "2012-01-01",
+                                         max    = "2021-12-31",
+                                         format = "dd/mm/yyyy",
+                                         separator = " - ",
+                                         language = "fr",
+                                         weekstart = 1),
+                          dateInput("start_training_date", "Date de début d'apprentissage :",
+                                    value =  "2012-09-01",
+                                    min    = "2012-01-01",
+                                    max    = "2021-12-31",
+                                    format = "dd/mm/yyyy",
+                                    language = "fr",
+                                    weekstart = 1),
+                          sliderInput("confidence", "Niveau de confiance :",
+                                      min = 0, max = 1, value = 0.9, step = 0.01),
+                          sliderInput("week_latency", "Dernières semaines à exclure pour l'apprentissage :",
+                                      min = 0, max = 20, value = 10, step = 1, round = TRUE),
+                          selectInput("training_type", "Algorithme de prédiction :",
+                                      c("XGBoost simple" = "xgb", 
+                                        "XGBoost avec intervalle de confiance" = "xgb_interval")),
+                          checkboxGroupInput("model_options", "Autres options",
+                                             c("Réexécuter la préparation des données" = "preprocessing", 
+                                               "Ne pas prédire les jours sans école" = "remove_no_school", 
+                                               "Omettre les valeurs extrèmes (3 sigma)" = "remove_outliers"),
+                                             selected = c("preprocessing", "remove_no_school", "remove_outliers")),
+                          actionButton("launch_model", "Lancer la prédiction")),
+                 
+                 
+                 ##  UI display of server parameters --------------------------------------------------
+                 tabPanel("Superviser", 
+                          h3('Current architecture info'),
+                          '(These values will change when app is run locally vs on Shinyapps.io)',
+                          hr(),
+                          DT::dataTableOutput('sysinfo'),
+                          br(),
+                          verbatimTextOutput('which_python'),
+                          verbatimTextOutput('python_version'),
+                          verbatimTextOutput('ret_env_var'),
+                          verbatimTextOutput('venv_root'))
 )
 
 
@@ -254,17 +251,74 @@ server <- function(input, output) {
         return(filtered)
     })
     
+
+# Navigation - bouton "Après" ---------------------------------------------
     
+    observeEvent(input$apres, {
+        period_rank <- which(periods() == input$select_period)
+        if (period_rank == 5) {
+            year_rank <- which(years() == input$select_year)
+            if (year_rank == 1) {
+                shinyalert::shinyalert("Attention",
+                                       paste("Les données ne sont pas préparées
+                                       pour des dates après l'année scolaire", 
+                                             input$select_year, "."), 
+                                       type = "error", html = TRUE)
+            } else {
+                new_year <- years()[year_rank - 1]
+                updateSelectInput(inputId = "select_period",
+                                  choices = periods(),
+                                  selected = "Ete-Toussaint")
+                updateSelectInput(inputId = "select_year",
+                                  choices = years(),
+                                  selected = new_year)
+            }
+        } else {
+            new_period <- periods()[period_rank + 1]
+            updateSelectInput(inputId = "select_period",
+                              choices = periods(),
+                              selected = new_period)
+        }
+    })
+    
+    # Navigation - bouton "Avant" ---------------------------------------------
+    
+    observeEvent(input$avant, {
+        period_rank <- which(periods() == input$select_period)
+        if (period_rank == 1) {
+            year_rank <- which(years() == input$select_year)
+            if (year_rank == length(years())) {
+                shinyalert::shinyalert("Attention",
+                                       paste("Les données ne sont pas préparées
+                                       pour des dates avant l'année scolaire", 
+                                             input$select_year, "."), 
+                                       type = "error", html = TRUE)
+            } else {
+                new_year <- years()[year_rank + 1]
+                updateSelectInput(inputId = "select_period",
+                                  choices = periods(),
+                                  selected = "Avril-Ete")
+                updateSelectInput(inputId = "select_year",
+                                  choices = years(),
+                                  selected = new_year)
+            }
+        } else {
+            new_period <- periods()[period_rank - 1]
+            updateSelectInput(inputId = "select_period",
+                              choices = periods(),
+                              selected = new_period)
+        }
+    })
     output$select_period <- renderUI({
-        selectInput("select_period", "Période",
+        selectInput("select_period", "Période inter-vacances",
                     choices = periods())
     })
     output$select_year <- renderUI({
-        selectInput("select_year", "Année",
+        selectInput("select_year", "Année scolaire",
                     choices = years())
     })
     output$select_cafet <- renderUI({
-        selectInput("select_cafet", "Établissement",
+        selectInput("select_cafet", "Filtrer un restaurant scolaire",
                     choices = cafets())
     })
      

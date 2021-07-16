@@ -2,3 +2,7 @@ Execution sur une école uniquement : trouver  le bug
 V Résoudre le problème de plots /Matplotlib sous windows
 Cumuler avec les autres données et comparer dans le graph
 Changer le layout de consultation : suivant / précédent
+Génerer un historique de prévisions sur toute la période
+Extraire donnée 2020-2021
+Dans "Consulter les prévisions", ajouter le type de prévision (réel ou prévision).
+Charger le graph de consultation avec la donnée la plus récente disponible
