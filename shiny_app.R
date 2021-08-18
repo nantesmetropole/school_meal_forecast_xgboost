@@ -154,48 +154,54 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                           ),
                  
                  ## Data visualization ------------------------------------------------------
-                 tabPanel("Charger des données"),
+                 tabPanel("Charger des données",
+                          plotOutput("available_data")),
                  
                  ## Model parameters --------------------------------------------------------
                  tabPanel("Générer des prévisions",
-                          selectInput("column_to_predict", "Variable que l'on cherche à prédire :",
-                                      c("Fréquentation réelle" = "reel", 
-                                        "Commandes par les écoles" = "prevision")),
-                          dateRangeInput("daterange_forecast", "Période à prévoir :",
-                                         start  = "2017-09-30",
-                                         end    = "2017-12-15",
-                                         min    = "2012-01-01",
-                                         max    = "2021-12-31",
-                                         format = "dd/mm/yyyy",
-                                         separator = " - ",
-                                         language = "fr",
-                                         weekstart = 1),
-                          dateInput("start_training_date", "Date de début d'apprentissage :",
-                                    value =  "2012-09-01",
-                                    min    = "2012-01-01",
-                                    max    = "2021-12-31",
-                                    format = "dd/mm/yyyy",
-                                    language = "fr",
-                                    weekstart = 1),
-                          sliderInput("confidence", "Niveau de confiance :",
-                                      min = 0, max = 1, value = 0.9, step = 0.01),
-                          sliderInput("week_latency", "Dernières semaines à exclure pour l'apprentissage :",
-                                      min = 0, max = 20, value = 10, step = 1, round = TRUE),
-                          selectInput("training_type", "Algorithme de prédiction :",
-                                      c("XGBoost simple" = "xgb", 
-                                        "XGBoost avec intervalle de confiance" = "xgb_interval")),
-                          checkboxGroupInput("model_options", "Autres options",
-                                             c("Réexécuter la préparation des données" = "preprocessing", 
-                                               "Ne pas prédire les jours sans école" = "remove_no_school", 
-                                               "Omettre les valeurs extrèmes (3 sigma)" = "remove_outliers"),
-                                             selected = c("preprocessing", "remove_no_school", "remove_outliers")),
-                          actionButton("launch_model", "Lancer la prédiction")),
+                          fluidRow(
+                              column(4,
+                                     selectInput("column_to_predict", "Variable que l'on cherche à prédire :",
+                                                 c("Fréquentation réelle" = "reel", 
+                                                   "Commandes par les écoles" = "prevision")),
+                                     dateRangeInput("daterange_forecast", "Période à prévoir :",
+                                                    start  = "2017-09-30",
+                                                    end    = "2017-12-15",
+                                                    min    = "2012-01-01",
+                                                    max    = "2021-12-31",
+                                                    format = "dd/mm/yyyy",
+                                                    separator = " - ",
+                                                    language = "fr",
+                                                    weekstart = 1),
+                                     dateInput("start_training_date", "Date de début d'apprentissage :",
+                                               value =  "2012-09-01",
+                                               min    = "2012-01-01",
+                                               max    = "2021-12-31",
+                                               format = "dd/mm/yyyy",
+                                               language = "fr",
+                                               weekstart = 1)),
+                              column(4,
+                                     sliderInput("confidence", "Niveau de confiance :",
+                                                 min = 0, max = 1, value = 0.9, step = 0.01),
+                                     sliderInput("week_latency", "Dernières semaines à exclure pour l'apprentissage :",
+                                                 min = 0, max = 20, value = 10, step = 1, round = TRUE),
+                                     selectInput("training_type", "Algorithme de prédiction :",
+                                                 c("XGBoost simple" = "xgb", 
+                                                   "XGBoost avec intervalle de confiance" = "xgb_interval"))),
+                              column(4,
+                                     checkboxGroupInput("model_options", "Autres options",
+                                                        c("Réexécuter la préparation des données" = "preprocessing", 
+                                                          "Ne pas prédire les jours sans école" = "remove_no_school", 
+                                                          "Omettre les valeurs extrèmes (3 sigma)" = "remove_outliers"),
+                                                        selected = c("preprocessing", "remove_no_school", "remove_outliers")),
+                                     actionButton("launch_model", "Lancer la prédiction")))
+                          ),
                  
                  
                  ##  UI display of server parameters --------------------------------------------------
                  tabPanel("Superviser", 
-                          h3('Current architecture info'),
-                          '(These values will change when app is run locally vs on Shinyapps.io)',
+                          h3('Information système'),
+                          "(Ces valeurs changent selon le poste ou serveur qui fait tourner l'application)",
                           hr(),
                           DT::dataTableOutput('sysinfo'),
                           br(),
@@ -354,6 +360,29 @@ server <- function(input, output) {
      })
      
 
+# Visualize existing data -------------------------------------------------
+
+     output$available_data <- renderPlot(
+         x %>%
+             ggplot(aes(x = `Jour`, y = `Valeur`)) +
+             geom_line(aes(color = `Nombre de repas :`)) +
+             facet_grid(an_scol ~ `Source`) +
+             scale_x_date(labels = function(x) format(x, "%d-%b"),
+                          date_minor_breaks = "1 month") + 
+             xlab("") +
+             ylab("") +
+             ggtitle(titre) +
+             theme_bw() + 
+             theme(legend.position="bottom") +
+             geom_rect(data = vacances, inherit.aes = FALSE,
+                       aes(xmin = date_start2, xmax = date_end2,
+                           ymin = 0, ymax = 20000, group = Nom,
+                           fill = "Vacances scolaires"),
+                       color="transparent", alpha=0.3) +
+             scale_fill_manual('Evénements :',
+                               values = 'orange',  
+                               guide = guide_legend(override.aes = list(alpha = 0.3)))
+     )
 
 ## Launch model ------------------------------------------------------------
     observeEvent(input$launch_model, {
