@@ -11,3 +11,4 @@ __pycache__/
 reticulate_setup.R
 reprex.*
 temp/
+tests/
