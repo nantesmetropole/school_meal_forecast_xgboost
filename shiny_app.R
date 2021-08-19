@@ -20,6 +20,7 @@ reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
 # Libraries -------------------------------------------------------------------
 library(magrittr)
+library(lubridate)
 
 # A function to install required functions
 install_load <- function(mypkg, to_load = FALSE) {
@@ -156,7 +157,24 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  ## Data visualization ------------------------------------------------------
                  tabPanel("Charger des données",
                           sidebarLayout(
-                              sidebarPanel(),
+                              sidebarPanel(
+                                  h4("Importer de nouvelles données"),
+                                  fileInput("add_effs_real", label = NULL,
+                                            buttonLabel = "Fréquentation réellement enregistrée",
+                                            placeholder = NULL),
+                                  fileInput("add_effs_prev", label = NULL,
+                                            buttonLabel = "Commandes par les établissements",
+                                            placeholder = NULL),
+                                  fileInput("add_menus", label = NULL,
+                                            buttonLabel = "Menus pour la restauration scolaire",
+                                            placeholder = NULL),
+                                  fileInput("add_strikes", label = NULL,
+                                            buttonLabel = "Grèves (éducation ou restauration)",
+                                            placeholder = NULL),
+                                  fileInput("add_vacs", label = NULL, 
+                                            buttonLabel = "Vacances scolaires pour la zone B",
+                                            placeholder = NULL)
+                              ),
                               mainPanel(plotOutput("available_data"))
                           )
                  ),
@@ -259,7 +277,14 @@ server <- function(input, output) {
             dplyr::summarise(Repas = sum(output, na.rm = TRUE))
         return(filtered)
     })
+    last_prev <- reactive ({
+        max(ymd(prev()$date_str))
+    })
     
+    piv_last_prev <- reactive({
+        pivs() %>%
+            filter(last_prev() %within% interval(`Début`, Fin))
+    }) 
 
 # Navigation - bouton "Après" ---------------------------------------------
     
@@ -320,11 +345,14 @@ server <- function(input, output) {
     })
     output$select_period <- renderUI({
         selectInput("select_period", "Période inter-vacances",
-                    choices = periods())
+                    choices = periods(),
+                    selected = piv_last_prev()$`Période`)
     })
     output$select_year <- renderUI({
         selectInput("select_year", "Année scolaire",
-                    choices = years())
+                    choices = years(),
+                    selected = piv_last_prev()$`Année`
+                    )
     })
     output$select_cafet <- renderUI({
         selectInput("select_cafet", "Filtrer un restaurant scolaire",
@@ -376,10 +404,11 @@ server <- function(input, output) {
      ### Compute the number of values of staff previsions and kid attendance --- 
      avail_freqs <- reactive ({
          dt()$freqs %>%
-             dplyr::select(date, 
-                           `Previsions agents` = prevision, 
-                           `Frequentations reelle` = reel) %>%
+             dplyr::select(date, prevision, reel) %>%
              tidyr::pivot_longer(cols = -date, names_to = "avail_data") %>%
+             dplyr::mutate(avail_data = dplyr::recode(avail_data,
+                                                      prevision = "Commandes",
+                                                      reel = "Fréquentation")) %>%
              dplyr::group_by(date, avail_data) %>%
              dplyr::summarise(n = dplyr::n()) 
      })
@@ -393,9 +422,35 @@ server <- function(input, output) {
              dplyr::summarise(n = dplyr::n())
      })
      
+     
+     avail_vacs <- reactive ({
+         vacs <- dt()$vacs
+         purrr:::map2(vacs$date_debut, vacs$date_fin, 
+                      ~ seq(.x, .y, by = "1 day")) %>%
+             purrr::reduce(c) -> vacs_dates
+         tidyr::tibble(
+             date = vacs_dates,
+             avail_data = "Vacances",
+             n = 1
+         )
+     })
+     
+     avail_holidays <-reactive ({
+         dt()$holidays %>%
+             dplyr::mutate(avail_data = "Fériés") %>%
+             dplyr::select(date, avail_data, n = jour_ferie)
+     }) 
+     
+     
+     
+     
      ### Consolidate available data statistics ---------------------------------
      avail_data <- reactive({
-         dplyr::bind_rows(avail_freqs(), avail_menus(), avail_strikes()) %>%
+         dplyr::bind_rows(avail_freqs(), avail_menus(), avail_strikes(),
+                          avail_vacs()) %>%
+             dplyr::bind_rows(dplyr::filter(avail_holidays(),
+                                     date <= max(.$date),
+                                     date >= (min(.$date)))) %>%
              dplyr::mutate(annee = lubridate::year(date),
                     an_scol_start = ifelse(lubridate::month(date) > 8, 
                                            lubridate::year(date), 
@@ -407,7 +462,9 @@ server <- function(input, output) {
                               lubridate::month(date), lubridate::day(date), sep = "-"))) %>%
              dplyr::group_by(an_scol, avail_data) %>%
              dplyr::mutate(max_year_var = max(n, na.rm = TRUE),
-                    nday_vs_nyearmax = n / max_year_var)
+                    nday_vs_nyearmax = n / max_year_var) %>%
+             dplyr::mutate(avail_data = factor(avail_data,
+                                        levels = c("Vacances", "Fériés", "Grèves", "Menus", "Commandes", "Fréquentation")))
      })
 
      ### Plot available data ---------------------------------------------------
@@ -423,11 +480,12 @@ server <- function(input, output) {
              ggplot2::scale_x_date(labels = function(x) format(x, "%b"),
                                    date_breaks = "1 month", date_minor_breaks = "1 month",
                                    position = "top") +
-             ggplot2::theme(axis.title.x = element_blank(),
-                            axis.title.y = element_blank(),
-                            axis.text.x = element_text(hjust = 0),
-                            axis.text.y = element_blank(),
-                            legend.position = "top")
+             ggplot2::theme(axis.title.x = ggplot2::element_blank(),
+                            axis.title.y = ggplot2::element_blank(),
+                            axis.text.x = ggplot2::element_text(hjust = 0),
+                            # axis.text.y = ggplot2::element_blank(),
+                            legend.position = "none")+
+             ggplot2::ggtitle("Données déjà chargées dans l'outil")
      }, height = 600
      )
 
