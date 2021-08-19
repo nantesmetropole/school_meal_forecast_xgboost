@@ -33,7 +33,7 @@ install_load <- function(mypkg, to_load = FALSE) {
 pkgs_to_load <- "shiny"
 pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", 
                    "data.table", "stringr", "lubridate", "plotly", "forcats",
-                   "shinyalert")
+                   "shinyalert", "dplyr", "tidyr")
 
 
 # Parameters --------------------------------------------------------------
@@ -369,55 +369,66 @@ server <- function(input, output) {
     ### Compute and format days where strike events ----------------------------
      avail_strikes <- reactive({ 
          dt()$strikes %>%
-             mutate("avail_data" = "Grèves") %>%
-             select(date, avail_data, n= greve)
+             dplyr::mutate("avail_data" = "Grèves") %>%
+             dplyr::select(date, avail_data, n= greve)
      })
  
      ### Compute the number of values of staff previsions and kid attendance --- 
      avail_freqs <- reactive ({
          dt()$freqs %>%
-             select(date, 
-                    `Prévisions agents` = prevision, 
-                    `Fréquentations réelle` = reel) %>%
-             pivot_longer(cols = -date, names_to = "avail_data") %>%
-             group_by(date, avail_data) %>%
-             summarise(n = n()) 
+             dplyr::select(date, 
+                           `Previsions agents` = prevision, 
+                           `Frequentations reelle` = reel) %>%
+             tidyr::pivot_longer(cols = -date, names_to = "avail_data") %>%
+             dplyr::group_by(date, avail_data) %>%
+             dplyr::summarise(n = dplyr::n()) 
      })
      
      ### Compute the number of menu items registered per day -------------------
      avail_menus <- reactive ({
          dt()$menus %>%
-             mutate("avail_data" = "Menus",
+             dplyr::mutate("avail_data" = "Menus",
                     date = lubridate::dmy(date)) %>%
-             group_by(date, avail_data) %>%
-             summarise(n = n())
+             dplyr::group_by(date, avail_data) %>%
+             dplyr::summarise(n = dplyr::n())
      })
      
-     ## Consolidate available data statistics ----------------------------------
+     ### Consolidate available data statistics ---------------------------------
      avail_data <- reactive({
-         bind_rows(avail_freqs(), avail_menus(), avail_strikes()) %>%
-             mutate(annee = year(date),
-                    an_scol_start = ifelse(month(date) > 8, 
-                                           year(date), year(date)-1),
+         dplyr::bind_rows(avail_freqs(), avail_menus(), avail_strikes()) %>%
+             dplyr::mutate(annee = lubridate::year(date),
+                    an_scol_start = ifelse(lubridate::month(date) > 8, 
+                                           lubridate::year(date), 
+                                           lubridate::year(date)-1),
                     an_scol = paste(an_scol_start, an_scol_start+1, sep = "-"),
                     an_scol = forcats::fct_rev(an_scol),
-                    `Jour` = ymd(paste(ifelse(month(date) > 8, "1999", "2000"), 
-                                       month(date), day(date), sep = "-"))) %>%
-             group_by(an_scol, avail_data) %>%
-             mutate(max_year_var = max(n, na.rm = TRUE),
+                    `Jour` = lubridate::ymd(
+                        paste(ifelse(lubridate::month(date) > 8, "1999", "2000"),
+                              lubridate::month(date), lubridate::day(date), sep = "-"))) %>%
+             dplyr::group_by(an_scol, avail_data) %>%
+             dplyr::mutate(max_year_var = max(n, na.rm = TRUE),
                     nday_vs_nyearmax = n / max_year_var)
      })
-     
-     output$available_data <- renderPlot(
+
+     ### Plot available data ---------------------------------------------------
+     output$available_data <- renderPlot({
          avail_data() %>%
-             ggplot(aes(x = `Jour`, y = avail_data)) +
-             geom_tile(aes(fill = nday_vs_nyearmax)) +
-             scale_fill_gradient2(low = "red", high = "green",
-                                  mid = scales::muted("orange"), 
-                                  midpoint = 0.3) +
-             facet_grid(fct_rev(an_scol) ~ .) + # fct_rev to have recent first
-             scale_x_date(labels = function(x) format(x, "%d-%b"),
-                          date_minor_breaks = "1 month")
+             ggplot2::ggplot(ggplot2::aes(x = `Jour`, y = avail_data)) +
+             ggplot2::geom_tile(ggplot2::aes(fill = avail_data,
+                                             alpha = nday_vs_nyearmax)) +
+             ggplot2::scale_alpha(guide = "none") +
+             ggplot2::scale_fill_discrete("") +
+             ggplot2::facet_grid(forcats::fct_rev(an_scol) ~ ., # fct_rev to have recent first
+                                 switch = "both") + 
+             ggplot2::scale_x_date(labels = function(x) format(x, "%b"),
+                                   date_breaks = "1 month", date_minor_breaks = "1 month",
+                                   position = "top") +
+             ggplot2::theme(axis.title.x = element_blank(),
+                            axis.title.y = element_blank(),
+                            axis.text.x = element_text(hjust = 0),
+                            axis.text.y = element_blank(),
+                            legend.position = "top")
+     }, height = 600
      )
 
 ## Launch model ------------------------------------------------------------
