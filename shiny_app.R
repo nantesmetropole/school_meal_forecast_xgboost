@@ -155,7 +155,11 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  
                  ## Data visualization ------------------------------------------------------
                  tabPanel("Charger des données",
-                          plotOutput("available_data")),
+                          sidebarLayout(
+                              sidebarPanel(),
+                              mainPanel(plotOutput("available_data"))
+                          )
+                 ),
                  
                  ## Model parameters --------------------------------------------------------
                  tabPanel("Générer des prévisions",
@@ -214,7 +218,6 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
 
 
 # Server ------------------------------------------------------------------
-
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
@@ -360,28 +363,61 @@ server <- function(input, output) {
      })
      
 
-# Visualize existing data -------------------------------------------------
+## Visualize existing data for each day-----------------------------------------
 
+
+    ### Compute and format days where strike events ----------------------------
+     avail_strikes <- reactive({ 
+         dt()$strikes %>%
+             mutate("avail_data" = "Grèves") %>%
+             select(date, avail_data, n= greve)
+     })
+ 
+     ### Compute the number of values of staff previsions and kid attendance --- 
+     avail_freqs <- reactive ({
+         dt()$freqs %>%
+             select(date, 
+                    `Prévisions agents` = prevision, 
+                    `Fréquentations réelle` = reel) %>%
+             pivot_longer(cols = -date, names_to = "avail_data") %>%
+             group_by(date, avail_data) %>%
+             summarise(n = n()) 
+     })
+     
+     ### Compute the number of menu items registered per day -------------------
+     avail_menus <- reactive ({
+         dt()$menus %>%
+             mutate("avail_data" = "Menus",
+                    date = lubridate::dmy(date)) %>%
+             group_by(date, avail_data) %>%
+             summarise(n = n())
+     })
+     
+     ## Consolidate available data statistics ----------------------------------
+     avail_data <- reactive({
+         bind_rows(avail_freqs(), avail_menus(), avail_strikes()) %>%
+             mutate(annee = year(date),
+                    an_scol_start = ifelse(month(date) > 8, 
+                                           year(date), year(date)-1),
+                    an_scol = paste(an_scol_start, an_scol_start+1, sep = "-"),
+                    an_scol = forcats::fct_rev(an_scol),
+                    `Jour` = ymd(paste(ifelse(month(date) > 8, "1999", "2000"), 
+                                       month(date), day(date), sep = "-"))) %>%
+             group_by(an_scol, avail_data) %>%
+             mutate(max_year_var = max(n, na.rm = TRUE),
+                    nday_vs_nyearmax = n / max_year_var)
+     })
+     
      output$available_data <- renderPlot(
-         x %>%
-             ggplot(aes(x = `Jour`, y = `Valeur`)) +
-             geom_line(aes(color = `Nombre de repas :`)) +
-             facet_grid(an_scol ~ `Source`) +
+         avail_data() %>%
+             ggplot(aes(x = `Jour`, y = avail_data)) +
+             geom_tile(aes(fill = nday_vs_nyearmax)) +
+             scale_fill_gradient2(low = "red", high = "green",
+                                  mid = scales::muted("orange"), 
+                                  midpoint = 0.3) +
+             facet_grid(fct_rev(an_scol) ~ .) + # fct_rev to have recent first
              scale_x_date(labels = function(x) format(x, "%d-%b"),
-                          date_minor_breaks = "1 month") + 
-             xlab("") +
-             ylab("") +
-             ggtitle(titre) +
-             theme_bw() + 
-             theme(legend.position="bottom") +
-             geom_rect(data = vacances, inherit.aes = FALSE,
-                       aes(xmin = date_start2, xmax = date_end2,
-                           ymin = 0, ymax = 20000, group = Nom,
-                           fill = "Vacances scolaires"),
-                       color="transparent", alpha=0.3) +
-             scale_fill_manual('Evénements :',
-                               values = 'orange',  
-                               guide = guide_legend(override.aes = list(alpha = 0.3)))
+                          date_minor_breaks = "1 month")
      )
 
 ## Launch model ------------------------------------------------------------
