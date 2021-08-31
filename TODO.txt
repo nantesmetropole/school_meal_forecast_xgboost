@@ -1,8 +1,28 @@
+# EN COURS ------------------------------------------
+Résoudre Bug démarrage
+Rrevoir les écarts entre labels 
+Réduire le nombre de méthodes d'import
+Visualiser les prévision en ligne et pas histogramme
+
+Ajouter la disponibilité des 
+Ajouter effectifs dans le graph de disponibilité
+
+
+# BACKLOG --------------------------------------------
 Execution sur une école uniquement : trouver  le bug
 V Résoudre le problème de plots /Matplotlib sous windows
 Cumuler avec les autres données et comparer dans le graph
-Changer le layout de consultation : suivant / précédent
+V Changer le layout de consultation : suivant / précédent
 Génerer un historique de prévisions sur toute la période
 Extraire donnée 2020-2021
 Dans "Consulter les prévisions", ajouter le type de prévision (réel ou prévision).
 Charger le graph de consultation avec la donnée la plus récente disponible
+Cliquer sur une tile du graph donnée disponible pour visualiser la donnée.
+profile code avail_data
+Ajouter les effectifs d'écoles dans les données disponibles
+Passer le graph de disponibilité des données en plotly
+Ajouter des progress bars : Shinyhttr + GET/write_disk + Waitress
+
+# FAIT ------------------------------------------------------------------
+V Visualiser les données disponibles (travail sur test_available_data dans temp)
+V On commence "simple" avec effectifs, grèves et menus. On fera ensuite les dates de vacances & autres
