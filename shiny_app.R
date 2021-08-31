@@ -21,6 +21,8 @@ reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 # Libraries -------------------------------------------------------------------
 library(magrittr)
 library(lubridate)
+library(shinyalert)
+library(waiter)
 
 # A function to install required functions
 install_load <- function(mypkg, to_load = FALSE) {
@@ -34,7 +36,7 @@ install_load <- function(mypkg, to_load = FALSE) {
 pkgs_to_load <- "shiny"
 pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", 
                    "data.table", "stringr", "lubridate", "plotly", "forcats",
-                   "shinyalert", "dplyr", "tidyr")
+                   "shinyalert", "dplyr", "tidyr", "shinyjs", "shinyhttr")
 
 
 # Parameters --------------------------------------------------------------
@@ -132,7 +134,8 @@ gen_piv <- function(vacations) {
 
 # UI ----------------------------------------------------------------------
 ui <- navbarPage("Prévoir commandes et fréquentation",
-                 
+                 shinyalert::useShinyalert(),
+                 waiter::autoWaiter(),
                  ## Result visualization ----------------------------------------------------
                  tabPanel("Consulter des prévisions",
                           shinyalert::useShinyalert(),
@@ -154,29 +157,61 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                               #                          "Télécharger toutes les données")))
                           ),
                  
-                 ## Data visualization ------------------------------------------------------
+                 ## Import new data ------------------------------------------------------
                  tabPanel("Charger des données",
                           sidebarLayout(
                               sidebarPanel(
+                                  shinyjs::inlineCSS(list(
+                                      ".shiny-input-container" = "margin-bottom: -20px",
+                                      ".btn" = "margin-bottom: 5px",
+                                      ".h5" = "padding: 0px 0px",
+                                      ".h5" = "margin-top: -20em",
+                                      ".h5" = "margin-bottom: -20px",
+                                      ".h4" = "margin-top: 0px",
+                                      ".h4" = "margin-bottom: 0px"
+                                  )),
+                                  # sources for icons: https://icons.getbootstrap.com/
                                   h4("Importer de nouvelles données"),
-                                  fileInput("add_effs_real", label = NULL,
-                                            buttonLabel = "Fréquentation réellement enregistrée",
-                                            placeholder = NULL),
-                                  fileInput("add_effs_prev", label = NULL,
-                                            buttonLabel = "Commandes par les établissements",
-                                            placeholder = NULL),
+                                  p(strong("Commandes et fréquentation réelle"),
+                                    tags$button(id = "help_freqs",
+                                                type = "button",
+                                                class="action-button",
+                                                HTML("?"))),
+                                    #icon("question-circle")),
+                                  actionButton("add_effs_real_od", "Open data",
+                                               icon = icon("cloud-download")),
+                                  actionButton("add_effs_real_sal", "Application Fusion",
+                                               icon = icon("hdd")),
+                                  fileInput("add_effs_real", 
+                                            label = NULL,
+                                            buttonLabel = "Parcourir",
+                                            placeholder = "Fichier sur le PC",
+                                            width = "271px"),
+                                  p(strong("Menus pour la restauration scolaire")),
+                                  actionButton("add_menus_od", "Open data",
+                                               icon = icon("cloud-download")),
+                                  actionButton("add_menus_sal", "Application Fusion",
+                                               icon = icon("hdd")),
                                   fileInput("add_menus", label = NULL,
-                                            buttonLabel = "Menus pour la restauration scolaire",
-                                            placeholder = NULL),
+                                            buttonLabel = "Parcourir",
+                                            placeholder = "Fichier sur le PC",
+                                            width = "271px"),
+                                  p(strong("Grèves (éducation ou restauration)")),
                                   fileInput("add_strikes", label = NULL,
-                                            buttonLabel = "Grèves (éducation ou restauration)",
-                                            placeholder = NULL),
-                                  fileInput("add_vacs", label = NULL, 
-                                            buttonLabel = "Vacances scolaires pour la zone B",
-                                            placeholder = NULL)
-                              ),
+                                            buttonLabel = "Parcourir",
+                                            placeholder = "Fichier sur le PC",
+                                            width = "271px"),
+                                  p(strong("Vacances scolaires pour la zone B")),
+                                  actionButton("add_vacs_od", "Open data",
+                                               icon = icon("cloud-download")),
+                                  p(strong("Effectifs des écoles")),
+                                  fileInput("add_strikes", label = NULL,
+                                            buttonLabel = "Parcourir",
+                                            placeholder = "Fichier sur le PC",
+                                            width = "271px"),
+                                  width = 3),
                               mainPanel(plotOutput("available_data"))
-                          )
+                              )
                  ),
                  
                  ## Model parameters --------------------------------------------------------
@@ -283,8 +318,8 @@ server <- function(input, output) {
     
     piv_last_prev <- reactive({
         pivs() %>%
-            filter(last_prev() %within% interval(`Début`, Fin))
-    }) 
+            dplyr::filter(last_prev() %within% lubridate::interval(`Début`, Fin))
+    })
 
 # Navigation - bouton "Après" ---------------------------------------------
     
@@ -488,7 +523,23 @@ server <- function(input, output) {
              ggplot2::ggtitle("Données déjà chargées dans l'outil")
      }, height = 600
      )
-
+## Imput new data ----------------------------------------------------------
+     
+     ### Help --------------------------------------------------------------
+    observeEvent(input$help_freqs, {
+        shinyalert::shinyalert("Import de données de fréquentation", 
+                               "Ces données peuvent être importées de plusieurs manières :
+                               - en allant récupérer les inormations les plus récentes sur l'open data
+                               - en changeant les données brutes extraites d'un sauvegarde de la base de données de Fusion
+                               - en se connectation directement à l'outil Fusion", 
+                               type = "info")
+    }) 
+     ### Import attendance -------------------------------------------------
+     observeEvent(input$pb_dwn_freqs, {
+         test3 <- httr::GET("https://data.nantesmetropole.fr/explore/dataset/244400404_nombre-convives-jour-cantine-nantes-2011/download/?format=csv&use_labels_for_header=true",
+                            shinyhttr::progress(session, id = "pb_freqs"))
+     })
+     
 ## Launch model ------------------------------------------------------------
     observeEvent(input$launch_model, {
         run_verteego(
@@ -506,7 +557,8 @@ server <- function(input, output) {
         dt$prev <- load_results()
     })
     
-    
+     
+
 
 ## System info -------------------------------------------------------------
     
