@@ -134,11 +134,11 @@ gen_piv <- function(vacations) {
 
 # UI ----------------------------------------------------------------------
 ui <- navbarPage("Prévoir commandes et fréquentation",
-                 shinyalert::useShinyalert(),
-                 waiter::autoWaiter(),
+                 # shinyalert::useShinyalert(),
+                 # waiter::autoWaiter(), causes display error on first launch TO DELETE
                  ## Result visualization ----------------------------------------------------
                  tabPanel("Consulter des prévisions",
-                          shinyalert::useShinyalert(),
+                          #shinyalert::useShinyalert(), duplicated TO DELETE
                           fluidRow(
                               column(1, actionButton("avant", 
                                                      "<< Avant",
@@ -159,16 +159,12 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  
                  ## Import new data ------------------------------------------------------
                  tabPanel("Charger des données",
+                          shinyalert::useShinyalert(),
                           sidebarLayout(
                               sidebarPanel(
                                   shinyjs::inlineCSS(list(
                                       ".shiny-input-container" = "margin-bottom: -20px",
-                                      ".btn" = "margin-bottom: 5px",
-                                      ".h5" = "padding: 0px 0px",
-                                      ".h5" = "margin-top: -20em",
-                                      ".h5" = "margin-bottom: -20px",
-                                      ".h4" = "margin-top: 0px",
-                                      ".h4" = "margin-bottom: 0px"
+                                      ".btn" = "margin-bottom: 5px"
                                   )),
                                   # sources for icons: https://icons.getbootstrap.com/
                                   h4("Importer de nouvelles données"),
@@ -201,14 +197,14 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier sur le PC",
                                             width = "271px"),
-                                  p(strong("Vacances scolaires pour la zone B")),
-                                  actionButton("add_vacs_od", "Open data",
-                                               icon = icon("cloud-download")),
                                   p(strong("Effectifs des écoles")),
                                   fileInput("add_strikes", label = NULL,
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier sur le PC",
                                             width = "271px"),
+                                  p(strong("Vacances scolaires pour la zone B")),
+                                  actionButton("add_vacs_od", "Open data",
+                                               icon = icon("cloud-download")),
                                   width = 3),
                               mainPanel(plotOutput("available_data"))
                               )
@@ -221,6 +217,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                      selectInput("column_to_predict", "Variable que l'on cherche à prédire :",
                                                  c("Fréquentation réelle" = "reel", 
                                                    "Commandes par les écoles" = "prevision")),
+                                     br(),
                                      dateRangeInput("daterange_forecast", "Période à prévoir :",
                                                     start  = "2017-09-30",
                                                     end    = "2017-12-15",
@@ -230,6 +227,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                                     separator = " - ",
                                                     language = "fr",
                                                     weekstart = 1),
+                                     br(), br(),
                                      dateInput("start_training_date", "Date de début d'apprentissage :",
                                                value =  "2012-09-01",
                                                min    = "2012-01-01",
@@ -240,8 +238,10 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                               column(4,
                                      sliderInput("confidence", "Niveau de confiance :",
                                                  min = 0, max = 1, value = 0.9, step = 0.01),
+                                     br(), br(),
                                      sliderInput("week_latency", "Dernières semaines à exclure pour l'apprentissage :",
                                                  min = 0, max = 20, value = 10, step = 1, round = TRUE),
+                                     br(), br(),
                                      selectInput("training_type", "Algorithme de prédiction :",
                                                  c("XGBoost simple" = "xgb", 
                                                    "XGBoost avec intervalle de confiance" = "xgb_interval"))),
@@ -251,6 +251,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                                           "Ne pas prédire les jours sans école" = "remove_no_school", 
                                                           "Omettre les valeurs extrèmes (3 sigma)" = "remove_outliers"),
                                                         selected = c("preprocessing", "remove_no_school", "remove_outliers")),
+                                     br(), br(),
                                      actionButton("launch_model", "Lancer la prédiction")))
                           ),
                  
