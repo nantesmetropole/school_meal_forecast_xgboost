@@ -1,4 +1,6 @@
-# Set environment -------------------------------------------------------------
+# Set parameters -------------------------------------------------------------
+
+## Environment parameters
 # Appropriate .Rprofile needs to be included in the project folder
 # reticulate::virtualenv_remove("venv_shiny_app")
 virtualenv_dir = Sys.getenv("VIRTUALENV_NAME")
@@ -18,6 +20,23 @@ if (!reticulate::virtualenv_exists(envname = "venv_shiny_app")) {
 }
 reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
+## Source parameters -----------------------------------------------------------
+
+# A function to build open data urls from portal and dataset id
+portal = "data.nantesmetropole.fr"
+
+od_url <- function(portal, dataset_id, 
+                   params = "/exports/csv") {
+    left <- paste0("https://", portal, "/api/v2/catalog/datasets/")
+    paste(left, dataset_id, params, sep = "/")
+}
+"https://data.nantesmetropole.fr/api/v2/catalog/datasets/244400404_nombre-convives-jour-cantine-nantes-2011/exports/csv"
+
+freq_id = "244400404_nombre-convives-jour-cantine-nantes-2011"
+freq_od <- od_url(portal = portal, dataset_id = freq_id)
+od_temp_loc <- "temp/freq_od.csv"
+
+
 # Libraries -------------------------------------------------------------------
 library(magrittr)
 library(lubridate)
@@ -36,7 +55,8 @@ install_load <- function(mypkg, to_load = FALSE) {
 pkgs_to_load <- "shiny"
 pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", 
                    "data.table", "stringr", "lubridate", "plotly", "forcats",
-                   "shinyalert", "dplyr", "tidyr", "shinyjs", "shinyhttr")
+                   "shinyalert", "dplyr", "tidyr", "shinyjs", "shinyhttr",
+                   "waiter")
 
 
 # Parameters --------------------------------------------------------------
@@ -132,6 +152,8 @@ gen_piv <- function(vacations) {
 }
 
 
+
+
 # UI ----------------------------------------------------------------------
 ui <- navbarPage("Prévoir commandes et fréquentation",
                  # shinyalert::useShinyalert(),
@@ -159,6 +181,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  
                  ## Import new data ------------------------------------------------------
                  tabPanel("Charger des données",
+                          waiter::useWaitress(),
                           shinyalert::useShinyalert(),
                           sidebarLayout(
                               sidebarPanel(
@@ -276,6 +299,9 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
+# Setting progress bars ------------------------------------------------
+    waitress_od <- waiter::Waitress$new("nav", theme = "overlay")
+    
 # Reactive values for result display -----------------------------------
     
     
@@ -524,7 +550,7 @@ server <- function(input, output) {
              ggplot2::ggtitle("Données déjà chargées dans l'outil")
      }, height = 600
      )
-## Imput new data ----------------------------------------------------------
+## Import new data ----------------------------------------------------------
      
      ### Help --------------------------------------------------------------
     observeEvent(input$help_freqs, {
@@ -536,9 +562,16 @@ server <- function(input, output) {
                                type = "info")
     }) 
      ### Import attendance -------------------------------------------------
-     observeEvent(input$pb_dwn_freqs, {
-         test3 <- httr::GET("https://data.nantesmetropole.fr/explore/dataset/244400404_nombre-convives-jour-cantine-nantes-2011/download/?format=csv&use_labels_for_header=true",
-                            shinyhttr::progress(session, id = "pb_freqs"))
+     observeEvent(input$add_effs_real_od, {
+         httr::GET(freq_od, # httr_progress(waitress_od),
+                   httr::write_disk(od_temp_loc, overwrite = TRUE))
+         arrow::read_delim_arrow("temp/freq_od.csv", delim = ";",
+                                 col_select = c(
+                                     site_type, date, prevision_s = prevision, reel_s = reel, site_nom
+                                 )) %>%
+             dplyr::anti_join(dt()$freqs) %>%
+             dplyr::bind_rows(dt()$freqs) %>%
+             readr::write_csv(index$path[index$name == "freqs"])
      })
      
 ## Launch model ------------------------------------------------------------
