@@ -42,6 +42,8 @@ library(magrittr)
 library(lubridate)
 library(shinyalert)
 library(waiter)
+# library(dplyr)
+# library(tidyr)
 
 # A function to install required functions
 install_load <- function(mypkg, to_load = FALSE) {
@@ -151,7 +153,48 @@ gen_piv <- function(vacations) {
         )))
 }
 
-
+# A function to transform data from Fusion for training data ------------------
+transform_fusion <- function(x, check_against) {
+    x %>%
+        dplyr::rename(date = DATPLGPRESAT, site_nom = NOMSAT, repas = LIBPRE, convive = LIBCON,
+               reel = TOTEFFREE, prev = TOTEFFPREV) %>%
+        dplyr::filter(repas == "DEJEUNER") %>%
+        dplyr::filter(stringr::str_starts(site_nom, "CL", negate = TRUE)) %>%
+        dplyr::filter(stringr::str_detect(site_nom, "TOURNEE", negate = TRUE)) %>%
+        dplyr::select(-repas) %>%
+        dplyr::mutate(convive = dplyr::recode(convive, 
+                                "1MATER." = "maternelle",
+                                "2GS." = "grande_section",
+                                "3PRIMAIRE" = "primaire",
+                                "4ADULTE" = "adulte"),
+               site_nom = stringr::str_remove(site_nom, "[0-9]{3} "),
+               site_nom = stringr::str_replace(site_nom, "COUDRAY MAT", "COUDRAY M\\."),
+               site_nom = stringr::str_replace(site_nom, "MAT", "M"),
+               site_nom = stringr::str_replace(site_nom, "COUDRAY ELEM", "COUDRAY E\\."),
+               site_nom = stringr::str_replace(site_nom, "ELEM", "E"),
+               site_nom = stringr::str_remove(site_nom, " M/E"),
+               site_nom = stringr::str_remove(site_nom, " PRIM"),
+               site_nom = stringr::str_remove(site_nom, "\\(.*\\)$"),
+               site_nom = stringr::str_trim(site_nom),
+               site_nom = stringr::str_replace(site_nom, "BAUT", "LE BAUT"),
+               site_nom = stringr::str_replace(site_nom, "  ", " "),
+               site_nom = stringr::str_replace(site_nom, "FOURNIER", "FOURNIER E"),
+               site_nom = stringr::str_replace(site_nom, " E / ", "/"),
+               site_nom = stringr::str_replace(site_nom, "MACE$", "MACE M"),
+               site_nom = ifelse(!(site_nom %in% check_against) & stringr::str_ends(site_nom, " (E|M)"),
+                                 stringr::str_remove(site_nom, " (E|M)$"), site_nom),
+               site_nom = stringr::str_replace(site_nom, "A.LEDRU-ROLLIN/S.BERNHARDT", 
+                                               "LEDRU ROLLIN/SARAH BERNHARDT"),
+               site_nom = stringr::str_replace(site_nom, "F.DALLET/DOCT TEILLAIS", 
+                                               "FRANCOIS DALLET/DOCTEUR TEILLAIS")) %>%
+        dplyr::group_by(date, site_nom, convive) %>%
+        dplyr::summarise(reel = sum(reel, na.rm = TRUE),
+                  prev = sum(prev, na.rm = TRUE)) %>%
+        tidyr::pivot_wider(names_from = convive, values_from = c(reel, prev),
+                    values_fill = 0) %>%
+        dplyr::mutate(reel = reel_maternelle + reel_grande_section + reel_primaire + reel_adulte,
+               prevision = prev_maternelle + prev_grande_section + prev_primaire + prev_adulte)
+}
 
 
 # UI ----------------------------------------------------------------------
@@ -202,7 +245,9 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                   actionButton("add_effs_real_sal", "Application Fusion",
                                                icon = icon("hdd")),
                                   fileInput("add_effs_real", 
-                                            label = NULL,
+                                            label = paste(
+                                                "Choisir un fichier au format",
+                                                "parquet extrait de Fusion."),
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier sur le PC",
                                             width = "271px"),
@@ -561,19 +606,75 @@ server <- function(input, output) {
                                - en se connectation directement à l'outil Fusion", 
                                type = "info")
     }) 
-     ### Import attendance -------------------------------------------------
+     ### Import attendance OD -------------------------------------------------
      observeEvent(input$add_effs_real_od, {
          httr::GET(freq_od, # httr_progress(waitress_od),
                    httr::write_disk(od_temp_loc, overwrite = TRUE))
-         arrow::read_delim_arrow("temp/freq_od.csv", delim = ";",
+         to_add <- arrow::read_delim_arrow("temp/freq_od.csv", delim = ";",
                                  col_select = c(
                                      site_type, date, prevision_s = prevision, reel_s = reel, site_nom
                                  )) %>%
-             dplyr::anti_join(dt()$freqs) %>%
+             dplyr::anti_join(dt()$freqs)
+         
+         nrows_to_add <- nrow(to_add)
+         ndays_to_add <- length(unique(to_add$date))
+         to_add %>%
              dplyr::bind_rows(dt()$freqs) %>%
              readr::write_csv(index$path[index$name == "freqs"])
+         shinyalert(title = "Import réussi !",
+                    text = paste("Ajout de",
+                                 nrows_to_add,
+                                 "effectifs de repas par établissements pour",
+                                 ndays_to_add,
+                                 "jours de service."),
+                    type = "success")
+         shinyalert(title = "Mise à jour du graphique impossible",
+                    text = paste("Un problème technique empêche la mise à jour",
+                    "du graphique indiquant la disponibilité des données.",
+                    "Les nouvelles données ajoutées seront visibles après",
+                    "le redémarrage de l'application"),
+                    type = "warning")
+         
      })
-     
+     ### Import attendance parquet ---------------------------------------------
+     # Manually load datafile
+     observeEvent(input$add_effs_real, {
+         file_in <- input$add_effs_real
+         dt_in <- arrow::read_parquet(file_in$datapath,
+                                           col_select = c("DATPLGPRESAT", "NOMSAT", "LIBPRE",
+                                                          "LIBCON","TOTEFFREE", "TOTEFFPREV")) %>%
+             transform_fusion(check_against = dt()$map_freqs$cantine_nom)
+         freqs <- dt()$freqs
+         new_days <- dt_in %>%
+             dplyr::anti_join(freqs, by = c("date", "site_nom"))
+         
+         alert_exist <- ""
+         if (!("reel_adulte" %in% colnames(freqs))) {
+             exist_days <- dt_in %>%
+                 dplyr::select(-reel, -prevision) %>%
+                 dplyr::inner_join(dplyr::select(freqs, -reel, -prevision, -site_type), 
+                                   by = c("date", "site_nom"))
+             alert_exist <- paste("Complément des fréquentation par type de convive pour",
+                                  nrow(exist_days), 
+                                  "effectifs de repas par établissement pour",
+                                  length(unique(exist_days$date)), 
+                                  "jours de service.\n")
+             freqs <- freqs %>%
+                 dplyr::left_join(exist_days, by = c("date", "site_nom"))
+         }
+         freqs <- dplyr::bind_rows(freqs, new_days) %>%
+             readr::write_csv(index$path[index$name == "freqs"])
+         alert_new <- paste("Ajout des fréquentation par type de convive pour",
+                            nrow(new_days), 
+                            "effectifs de repas par établissement pour",
+                            length(unique(new_days$date)), 
+                            "jours de service.")
+         
+         shinyalert(title = "Import depuis le fichier issu de Fusion réussi !",
+                    text = paste0(alert_exist, alert_new),
+                    type = "success")
+         
+     })
 ## Launch model ------------------------------------------------------------
     observeEvent(input$launch_model, {
         run_verteego(
