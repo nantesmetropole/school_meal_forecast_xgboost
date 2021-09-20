@@ -58,7 +58,7 @@ pkgs_to_load <- "shiny"
 pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", 
                    "data.table", "stringr", "lubridate", "plotly", "forcats",
                    "shinyalert", "dplyr", "tidyr", "shinyjs", "shinyhttr",
-                   "waiter")
+                   "waiter", "odbc", "DBI")
 
 
 # Parameters --------------------------------------------------------------
@@ -142,12 +142,12 @@ gen_piv <- function(vacations) {
         dplyr::mutate(piv_nom2 = stringr::str_remove(vacances_nom, 
                                                      "Vacances (d'|de la |de )"),
                       piv_nom1 = dplyr::lag(piv_nom2, 1),
-                      `Période` = paste(piv_nom1, piv_nom2, sep = "-"),
+                      periode = paste(piv_nom1, piv_nom2, sep = "-"),
                       `Début` = dplyr::lag(date_fin, 1),
                       Fin = date_debut) %>%
         dplyr::filter(!is.na(piv_nom1)) %>%
-        dplyr::select(`Année` = annee_scolaire,`Période`, `Début`, `Fin`) %>%
-        dplyr::mutate(`Période` = factor(`Période`, c(
+        dplyr::select(annee = annee_scolaire,periode, `Début`, `Fin`) %>%
+        dplyr::mutate(periode = factor(periode, c(
             "Ete-Toussaint", "Toussaint-Noel", "Noel-Hiver", "Hiver-Avril",
             "Avril-Ete"
         )))
@@ -195,16 +195,43 @@ transform_fusion <- function(x, check_against) {
         dplyr::mutate(reel = reel_maternelle + reel_grande_section + reel_primaire + reel_adulte,
                prevision = prev_maternelle + prev_grande_section + prev_primaire + prev_adulte)
 }
+load_fusion <- function(x, freqs) {
+    new_days <- x %>%
+        dplyr::anti_join(freqs, by = c("date", "site_nom"))
+    
+    alert_exist <- ""
+    if (!("reel_adulte" %in% colnames(freqs))) {
+        exist_days <- x %>%
+            dplyr::select(-reel, -prevision) %>%
+            dplyr::inner_join(dplyr::select(freqs, -reel, -prevision, -site_type), 
+                              by = c("date", "site_nom"))
+        alert_exist <- paste("Complément des fréquentation par type de convive pour",
+                             nrow(exist_days), 
+                             "effectifs de repas par établissement pour",
+                             length(unique(exist_days$date)), 
+                             "jours de service.\n")
+        freqs <- freqs %>%
+            dplyr::left_join(exist_days, by = c("date", "site_nom"))
+    }
+    freqs <- dplyr::bind_rows(freqs, new_days) %>%
+        readr::write_csv(index$path[index$name == "freqs"])
+    alert_new <- paste("Ajout des fréquentation par type de convive pour",
+                       nrow(new_days), 
+                       "effectifs de repas par établissement pour",
+                       length(unique(new_days$date)), 
+                       "jours de service.")
+    
+    shinyalert(title = "Import depuis le fichier issu de Fusion réussi !",
+               text = paste0(alert_exist, alert_new),
+               type = "success")
+}
 
 
 # UI ----------------------------------------------------------------------
 ui <- navbarPage("Prévoir commandes et fréquentation",
-                 # shinyalert::useShinyalert(),
-                 # waiter::autoWaiter(), causes display error on first launch TO DELETE
+                
                  ## Result visualization ----------------------------------------------------
                  tabPanel("Consulter des prévisions",
-                          waiter::autoWaiter(),
-                          #shinyalert::useShinyalert(), duplicated TO DELETE
                           fluidRow(
                               column(1, actionButton("avant", 
                                                      "<< Avant",
@@ -225,8 +252,11 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  
                  ## Import new data ------------------------------------------------------
                  tabPanel("Charger des données",
-                          waiter::autoWaiter(),
-                          #waiter::useWaitress(),
+                          autoWaiter(id = "available_data",
+                                     html = tagList(
+                              spin_flower(),
+                              h4("Patientez : inventaire en cours...")
+                          )),
                           shinyalert::useShinyalert(),
                           sidebarLayout(
                               sidebarPanel(
@@ -247,32 +277,46 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                   actionButton("add_effs_real_sal", "Application Fusion",
                                                icon = icon("hdd")),
                                   fileInput("add_effs_real", 
-                                            label = paste(
-                                                "Choisir un fichier au format",
-                                                "parquet extrait de Fusion."),
+                                            label = NULL,
                                             buttonLabel = "Parcourir",
-                                            placeholder = "Fichier sur le PC",
+                                            placeholder = "Fichier extrait de Fusion",
                                             width = "271px"),
-                                  p(strong("Menus pour la restauration scolaire")),
+                                  p(strong("Menus pour la restauration scolaire"),
+                                    tags$button(id = "help_menus",
+                                                type = "button",
+                                                class="action-button",
+                                                HTML("?"))),
                                   actionButton("add_menus_od", "Open data",
                                                icon = icon("cloud-download")),
                                   actionButton("add_menus_sal", "Application Fusion",
                                                icon = icon("hdd")),
                                   fileInput("add_menus", label = NULL,
                                             buttonLabel = "Parcourir",
-                                            placeholder = "Fichier sur le PC",
+                                            placeholder = "Fichier extrait de Fusion",
                                             width = "271px"),
-                                  p(strong("Grèves (éducation ou restauration)")),
+                                  p(strong("Grèves (éducation ou restauration)"),
+                                    tags$button(id = "help_strikes",
+                                                type = "button",
+                                                class="action-button",
+                                                HTML("?"))),
+                                  fileInput("add_strikes", label = NULL,
+                                            buttonLabel = "Parcourir",
+                                            placeholder = "Fichier de suivi",
+                                            width = "271px"),
+                                  p(strong("Effectifs des écoles"),
+                                    tags$button(id = "help_effs",
+                                                type = "button",
+                                                class="action-button",
+                                                HTML("?"))),
                                   fileInput("add_strikes", label = NULL,
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier sur le PC",
                                             width = "271px"),
-                                  p(strong("Effectifs des écoles")),
-                                  fileInput("add_strikes", label = NULL,
-                                            buttonLabel = "Parcourir",
-                                            placeholder = "Fichier sur le PC",
-                                            width = "271px"),
-                                  p(strong("Vacances scolaires pour la zone B")),
+                                  p(strong("Vacances scolaires pour la zone B"),
+                                    tags$button(id = "help_holi",
+                                                type = "button",
+                                                class="action-button",
+                                                HTML("?"))),
                                   actionButton("add_vacs_od", "Open data",
                                                icon = icon("cloud-download")),
                                   width = 3),
@@ -346,9 +390,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
-# Setting progress bars ------------------------------------------------
-    waitress_od <- waiter::Waitress$new("nav", theme = "overlay")
-    
+
 # Reactive values for result display -----------------------------------
     
     
@@ -358,25 +400,25 @@ server <- function(input, output) {
     pivs <- reactive({ gen_piv(vacs()) }) # Period between vacations
     cafets <- reactive({ c("Tous", # List of cafeteria
                            levels(factor(prev()$cantine_nom))) })
-    periods <- reactive({ levels(pivs()$`Période`) }) # Name of the periods
+    periods <- reactive({ levels(pivs()$periode) }) # Name of the periods
     years <- reactive({ # School years
-        levels(forcats::fct_rev(pivs()$`Année`)) 
+        levels(forcats::fct_rev(pivs()$annee)) 
         })
-    selected_year <- reactive({ input$select_year })
-    selected_period <- reactive({ input$select_period })
+
     selected_cafet <- reactive({ input$select_cafet })
     selected_dates <- reactive({  
         pivs() %>%
-            dplyr::filter(`Période` == selected_period() & 
-                              `Année` == selected_year()) %>%
+            dplyr::filter(periode == input$select_period & 
+                              annee == input$select_year) %>%
             dplyr::select(`Début`, `Fin`)
         })
-    date_start <- reactive({ lubridate::ymd(selected_dates()[[1]]) })
-    date_end <- reactive({ lubridate::ymd(selected_dates()[[2]]) })
+   
     filtered_prev <- reactive({ # Filtering the prevision based on parameters
+        date_start <- lubridate::ymd(selected_dates()[[1]])
+        date_end <- lubridate::ymd(selected_dates()[[2]])
         filtered <- prev() %>%
             dplyr::mutate(date_str = lubridate::ymd(date_str)) %>%
-            dplyr::filter(date_str >= date_start() & date_str <= date_end())
+            dplyr::filter(date_str >= date_start & date_str <= date_end)
         if (selected_cafet() != "Tous") {
             filtered <- filtered %>%
                 dplyr::filter(cantine_nom == selected_cafet())
@@ -455,12 +497,12 @@ server <- function(input, output) {
     output$select_period <- renderUI({
         selectInput("select_period", "Période inter-vacances",
                     choices = periods(),
-                    selected = piv_last_prev()$`Période`)
+                    selected = piv_last_prev()$periode)
     })
     output$select_year <- renderUI({
         selectInput("select_year", "Année scolaire",
                     choices = years(),
-                    selected = piv_last_prev()$`Année`
+                    selected = piv_last_prev()$annee
                     )
     })
     output$select_cafet <- renderUI({
@@ -495,7 +537,6 @@ server <- function(input, output) {
              ggplot2::geom_col()
      plotly::ggplotly(static) %>%
          plotly::config(displayModeBar = FALSE)
-     # static
 
      })
      
@@ -608,6 +649,39 @@ server <- function(input, output) {
                                - en se connectation directement à l'outil Fusion", 
                                type = "info")
     }) 
+    observeEvent(input$help_menus, {
+         shinyalert::shinyalert("Import de données de menus", 
+                                "Ces données peuvent être importées de plusieurs manières :
+                               - en allant récupérer les inormations les plus récentes sur l'open data
+                               - en changeant les données brutes extraites d'un sauvegarde de la base de données de Fusion
+                               - en se connectation directement à l'outil Fusion", 
+                                type = "info")
+     })
+    observeEvent(input$help_strikes, {
+        shinyalert::shinyalert("Import de données de grèves", 
+                               paste("Ces données doivent reconstruites à partir des fichiers de suivi des grêves",
+                               "de la direction de l'éducation. Il suffit de construire un tableau avec, dans",
+                               "une première colonne nommée 'date' la date des grêves de l'éducation ou de la", 
+                               "restauration ayant fait l'objet d'un préavis à Nantes Métropole, et une colonne", 
+                               "nommée 'greve' indiquant des 1 pour chaque date ayant connu une grève. Pour des",
+                               "exemples, Voir le fichier readme ou le fichier tests/data/calculators/greves.csv"), 
+                               type = "info")
+    })
+    observeEvent(input$help_effs, {
+        shinyalert::shinyalert("Import de données d'effectifs des écoles", 
+                               paste("Ces données sont fournies par la direction de l'éducation et correspondent aux",
+                               "effectifs en octobre. Le format à suivre correspond à trois colonnes 'ecole',", 
+                               "'annee_scolaire' et 'effectif'. Il faut s'assurer que la table de correspondance", 
+                               "entre les noms d'écoles et les noms de restaurants scolaires associés soit à jour",
+                               "dans tests/data/mappings/mapping_ecoles_cantines.csv"), 
+                               type = "info")
+    }) 
+    observeEvent(input$help_holi, {
+        shinyalert::shinyalert("Import des données de vacances scolaires", 
+                               paste("Ces données sont importées automatiquement à partir du portail open data de",
+                               "l'éducation nationale. Les dates correspondent à la zone B."), 
+                               type = "info")
+    }) 
      ### Import attendance OD -------------------------------------------------
      observeEvent(input$add_effs_real_od, {
          httr::GET(freq_od, # httr_progress(waitress_od),
@@ -645,38 +719,65 @@ server <- function(input, output) {
          dt_in <- arrow::read_parquet(file_in$datapath,
                                            col_select = c("DATPLGPRESAT", "NOMSAT", "LIBPRE",
                                                           "LIBCON","TOTEFFREE", "TOTEFFPREV")) %>%
-             transform_fusion(check_against = dt()$map_freqs$cantine_nom)
-         freqs <- dt()$freqs
-         new_days <- dt_in %>%
-             dplyr::anti_join(freqs, by = c("date", "site_nom"))
-         
-         alert_exist <- ""
-         if (!("reel_adulte" %in% colnames(freqs))) {
-             exist_days <- dt_in %>%
-                 dplyr::select(-reel, -prevision) %>%
-                 dplyr::inner_join(dplyr::select(freqs, -reel, -prevision, -site_type), 
-                                   by = c("date", "site_nom"))
-             alert_exist <- paste("Complément des fréquentation par type de convive pour",
-                                  nrow(exist_days), 
-                                  "effectifs de repas par établissement pour",
-                                  length(unique(exist_days$date)), 
-                                  "jours de service.\n")
-             freqs <- freqs %>%
-                 dplyr::left_join(exist_days, by = c("date", "site_nom"))
-         }
-         freqs <- dplyr::bind_rows(freqs, new_days) %>%
-             readr::write_csv(index$path[index$name == "freqs"])
-         alert_new <- paste("Ajout des fréquentation par type de convive pour",
-                            nrow(new_days), 
-                            "effectifs de repas par établissement pour",
-                            length(unique(new_days$date)), 
-                            "jours de service.")
-         
-         shinyalert(title = "Import depuis le fichier issu de Fusion réussi !",
-                    text = paste0(alert_exist, alert_new),
-                    type = "success")
-         
+             transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
+             load_fusion(freqs = dt()$freqs)
      })
+     
+
+### Import attendance Firebase ----------------------------------------------
+     observeEvent(input$add_effs_real_sal, {
+         drivers <- sort(unique(odbc::odbcListDrivers()[[1]]))
+         if (sum(stringr::str_detect(drivers, "Firebird"), na.rm = TRUE) < 1) {
+             shinyalert(title = "Besoin d'un accès spécial pour cette option",
+                        text = paste("Cette méthode d'import requiert de",
+                                     "disposer d'un poste disposant des droits",
+                                     "en lecture et des drivers permettant de",
+                                     "lire la base de donnée de l'application",
+                                     "métier"),
+                        type = "error")
+         } else {
+             # On charge le mot de passe de la base
+             load("secret.Rdata")
+             # On paramètre la connexion
+             con <- DBI::dbConnect(odbc::odbc(), 
+                                   .connection_string = paste0(
+                 "DRIVER=Firebird/InterBase(r) driver;
+                 UID=SYSDBA; PWD=", secret, ";
+                 DBNAME=C:\\Users\\FBEDECARRA\\Documents\\Fusion\\FUSION.FDB;"),
+                 timeout = 10)
+             dt_in <- dbReadTable(con, "VIFC_EFFECTIFS_REEL_PREV_CNS") %>%
+                 select(DATPLGPRESAT, NOMSAT, LIBPRE, LIBCON, 
+                        TOTEFFREE, TOTEFFPREV) %>%
+                 transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
+                 load_fusion(freqs = dt()$freqs)
+         }
+
+     })
+     # # On charge les bibliothèques utiles
+     # library(odbc)
+     # library(DBI)
+     # library(tidyverse)
+     # library(arrow)
+     # library(knitr)
+     # 
+     # # Liste les drivers ODBC sur le poste
+     # drivers <- sort(unique(odbc::odbcListDrivers()[[1]]))
+     # # Vérifie que firebird est bien dans la liste
+     # ifelse(sum(str_detect(drivers, "Firebird"), na.rm = TRUE) >= 1,
+     #        "OK : Firebird a bien été détecté dans la liste",
+     #        "ERREUR : Installer Firebird et son pilote ODBC")
+     # 
+     # # On charge le mot de passe de la base
+     # load("secret.Rdata")
+     # # On paramètre la connexion
+     # con <- DBI::dbConnect(odbc::odbc(), 
+     #                       .connection_string = paste0(
+     #                           "DRIVER=Firebird/InterBase(r) driver;
+     #             UID=SYSDBA; PWD=",
+     #                           secret, ";
+     #             DBNAME=C:\\Users\\FBEDECARRA\\Documents\\Fusion\\FUSION.FDB;"),
+     #                       timeout = 10)
+     
 ## Launch model ------------------------------------------------------------
     observeEvent(input$launch_model, {
         run_verteego(
