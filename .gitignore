@@ -12,3 +12,4 @@ reticulate_setup.R
 reprex.*
 temp/
 tests/
+secret.Rdata
