@@ -203,6 +203,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  # waiter::autoWaiter(), causes display error on first launch TO DELETE
                  ## Result visualization ----------------------------------------------------
                  tabPanel("Consulter des prévisions",
+                          waiter::autoWaiter(),
                           #shinyalert::useShinyalert(), duplicated TO DELETE
                           fluidRow(
                               column(1, actionButton("avant", 
@@ -224,7 +225,8 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  
                  ## Import new data ------------------------------------------------------
                  tabPanel("Charger des données",
-                          waiter::useWaitress(),
+                          waiter::autoWaiter(),
+                          #waiter::useWaitress(),
                           shinyalert::useShinyalert(),
                           sidebarLayout(
                               sidebarPanel(
