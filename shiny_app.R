@@ -37,6 +37,7 @@ freq_od <- od_url(portal = portal, dataset_id = freq_id)
 od_temp_loc <- "temp/freq_od.csv"
 
 
+
 # Libraries -------------------------------------------------------------------
 library(magrittr)
 library(lubridate)
@@ -495,6 +496,45 @@ server <- function(input, output) {
             dplyr::summarise(Repas = sum(output, na.rm = TRUE))
         return(filtered)
     })
+    
+    
+    filtered_dt <- reactive({
+        # Filter parameters
+        # selected_cafet <- "Tous"
+        # selected_dates <- c("2019-01-01", "2019-04-15")
+        date_start <- lubridate::ymd(selected_dates()[[1]])
+        date_end <- lubridate::ymd(selected_dates()[[2]])
+        cafet <- input$select_cafet
+        # previsions for selected dates
+        filtered_prevs <- prev() %>%
+            dplyr::mutate(Date = lubridate::as_date(date_str)) %>%
+            dplyr::rename(site_nom = cantine_nom) %>%
+            dplyr::filter(Date >= date_start & Date <= date_end)
+        # attendance for selected dates
+        filtered_freqs <- dt()$freqs %>%
+            dplyr::mutate(Date = lubridate::as_date(date)) %>%
+            dplyr::filter(Date >= date_start & Date <= date_end)
+        # consolidating
+        join_filtered <- filtered_freqs %>%
+            dplyr::full_join(filtered_prevs, by = c("Date", "site_nom"))
+        # Filtering on cafeteria
+        if (cafet != "Tous") {
+            join_filtered <- join_filtered %>%
+                dplyr::filter(cantine_nom == cafet)
+        }
+        
+        filtered <- join_filtered  %>%
+            dplyr::group_by(Date) %>%
+            dplyr::summarise(`prevision_modele` = sum(output, na.rm = TRUE),
+                             `prevision_agents` = sum(prevision, na.rm = TRUE),
+                             `reel` = sum(reel, na.rm = TRUE)) %>%
+            dplyr::ungroup() %>% # needed to filter at follwing line
+            dplyr::filter(if_any(where(is.numeric), ~ .x > 0)) %>% # only keep days with lunches
+            tidyr::pivot_longer(-Date, values_to = "Repas", names_to = "Source") %>%
+            dplyr::mutate(Type = ifelse(Source == "reel", "reel", "prevision"))
+        return(filtered)
+    })
+    
     last_prev <- reactive ({
         max(ymd(prev()$date_str))
     })
@@ -597,13 +637,17 @@ server <- function(input, output) {
     
     
     output$plot <- plotly::renderPlotly({
-        static <- ggplot2::ggplot(filtered_prev(), 
-                                  ggplot2::aes(x = Date,
-                                               y = Repas,
-                                               xmin = min(Date), ymax = max(Date))) + 
-            ggplot2::geom_col()
+        dt2 <- filtered_dt()
+        static <- dt2 %>%
+            ggplot2::ggplot(ggplot2::aes(x = Date, y = Repas, color = Source, fill = Source)) +
+            ggplot2::geom_line(data = subset(dt2, stringr::str_starts(Source, "prevision"))) +
+            ggplot2::geom_bar(data = subset(dt2, stringr::str_starts(Source, "reel")),
+                              ggplot2::aes(x = Date, y = Repas), stat = "identity") +
+            ggplot2::theme(axis.title.x=ggplot2::element_blank()) 
+        
         plotly::ggplotly(static) %>%
-            plotly::config(displayModeBar = FALSE)
+            plotly::config(displayModeBar = FALSE) %>%
+            plotly::layout(legend = list(orientation = "h", x = 0, y = 1.1))
         
     })
     
