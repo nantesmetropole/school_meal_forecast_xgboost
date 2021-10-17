@@ -155,7 +155,7 @@ gen_piv <- function(vacations) {
 }
 
 # A function to inventory the available data ----------------------------------
-cumpute_availability <- function(x) {
+compute_availability <- function(x) {
     avail_strikes <- x$strikes %>%
         dplyr::mutate("avail_data" = "Grèves") %>%
         dplyr::select(date, avail_data, n= greve)
@@ -489,7 +489,7 @@ server <- function(input, output) {
             dplyr::filter(date_str >= date_start & date_str <= date_end)
         if (selected_cafet() != "Tous") {
             filtered <- filtered %>%
-                dplyr::filter(cantine_nom == selected_cafet())
+                dplyr::filter(site_nom == selected_cafet())
         }
         filtered <- filtered %>%
             dplyr::group_by(Date = lubridate::ymd(date_str)) %>%
@@ -520,7 +520,7 @@ server <- function(input, output) {
         # Filtering on cafeteria
         if (cafet != "Tous") {
             join_filtered <- join_filtered %>%
-                dplyr::filter(cantine_nom == cafet)
+                dplyr::filter(site_nom == cafet)
         }
         
         filtered <- join_filtered  %>%
@@ -706,7 +706,7 @@ server <- function(input, output) {
     observeEvent(input$process_inventory, {
         output$available_data <- renderPlot({
             dt_act <- dt()
-            cumpute_availability(x = dt_act) %>%
+            compute_availability(x = dt_act) %>%
                 ggplot2::ggplot(ggplot2::aes(x = `Jour`, y = avail_data)) +
                 ggplot2::geom_tile(ggplot2::aes(fill = avail_data,
                                                 alpha = nday_vs_nyearmax)) +
