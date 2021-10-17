@@ -28,7 +28,7 @@ portal = "data.nantesmetropole.fr"
 od_url <- function(portal, dataset_id, 
                    params = "/exports/csv") {
     left <- paste0("https://", portal, "/api/v2/catalog/datasets/")
-    paste(left, dataset_id, params, sep = "/")
+    paste(left, dataset_id, params, sep = "")
 }
 "https://data.nantesmetropole.fr/api/v2/catalog/datasets/244400404_nombre-convives-jour-cantine-nantes-2011/exports/csv"
 
@@ -36,7 +36,8 @@ freq_id = "244400404_nombre-convives-jour-cantine-nantes-2011"
 freq_od <- od_url(portal = portal, dataset_id = freq_id)
 od_temp_loc <- "temp/freq_od.csv"
 
-
+menus_id <- "244400404_menus-cantines-nantes-2011-2019"
+menus_od <- od_url(portal = portal, dataset_id = menus_id)
 
 # Libraries -------------------------------------------------------------------
 library(magrittr)
@@ -154,13 +155,13 @@ gen_piv <- function(vacations) {
         )))
 }
 
-# A function to inventory the available data ----------------------------------
+# A function to inventory the available data 
 compute_availability <- function(x) {
     avail_strikes <- x$strikes %>%
         dplyr::mutate("avail_data" = "Grèves") %>%
         dplyr::select(date, avail_data, n= greve)
     
-    ### Compute the number of values of staff previsions and kid attendance --- 
+    # Compute the number of values of staff previsions and kid attendance
     avail_freqs <- x$freqs %>%
         dplyr::select(date, prevision, reel) %>%
         tidyr::pivot_longer(cols = -date, names_to = "avail_data") %>%
@@ -170,7 +171,7 @@ compute_availability <- function(x) {
         dplyr::group_by(date, avail_data) %>%
         dplyr::summarise(n = dplyr::n())
     
-    ### Compute the number of menu items registered per day -------------------
+    # Compute the number of menu items registered per day 
     avail_menus <- x$menus %>%
         dplyr::mutate("avail_data" = "Menus",
                       date = lubridate::dmy(date)) %>%
@@ -215,7 +216,7 @@ compute_availability <- function(x) {
     return(avail_data)
 }
 
-# A function to transform data from Fusion for training data ------------------
+# A function to transform data from Fusion for training data
 transform_fusion <- function(x, check_against) {
     x %>%
         dplyr::rename(date = DATPLGPRESAT, site_nom = NOMSAT, repas = LIBPRE, convive = LIBCON,
@@ -841,6 +842,48 @@ server <- function(input, output) {
                 load_fusion(freqs = dt()$freqs)
         }
         
+    })
+    
+    ### Import menus Firebase ----------------------------------------------
+    observeEvent(input$add_menus_sal, {
+      drivers <- sort(unique(odbc::odbcListDrivers()[[1]]))
+      if (sum(stringr::str_detect(drivers, "Firebird"), na.rm = TRUE) < 1) {
+        shinyalert(title = "Besoin d'un accès spécial pour cette option",
+                   text = paste("Cette méthode d'import requiert de",
+                                "disposer d'un poste disposant des droits",
+                                "en lecture et des drivers permettant de",
+                                "lire la base de donnée de l'application",
+                                "métier"),
+                   type = "error")
+      } else {
+        # On charge le mot de passe de la base
+        load("secret.Rdata")
+        # On paramètre la connexion
+        con <- DBI::dbConnect(odbc::odbc(), 
+                              .connection_string = paste0(
+                                "DRIVER=Firebird/InterBase(r) driver;
+                 UID=SYSDBA; PWD=", secret, ";
+                 DBNAME=C:\\Users\\FBEDECARRA\\Documents\\Fusion\\FUSION.FDB;"),
+                              timeout = 10)
+        new_menus <- DBI::dbReadTable(con, "VIFC_MENU") %>%
+          dplyr::filter(LIBPRE == "DEJEUNER" & LIBCATFIT != "PAIN") %>%
+          dplyr::select(date = "DATPLGPRE", rang = "ORDRE_LIBCATFIT", 
+                        plat = "LIBCLIFIT") %>%
+          unique() %>%
+          # arrange(date, rang) %>% # nicer to inspect the table this way
+          dplyr::mutate(date = format(date, "%d/%m/%Y")) %>%
+          dplyr::filter(!(date %in% dt()$menus$date)) 
+        dplyr::bind_rows(menus, new_menus) %>%
+          readr::write_csv(index$path[index$name == "menus"])
+        shinyalert(title = "Import des menus depuis Fusion réussi !",
+                   text = paste("Ajout des fréquentation par type de convive pour",
+                                nrow(new_menus), 
+                                "effectifs de repas par établissement pour",
+                                length(unique(new_menus$date)), 
+                                "jours de service."),
+                   type = "success")
+      }
+      
     })
     
     ## Launch model ------------------------------------------------------------
