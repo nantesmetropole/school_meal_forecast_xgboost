@@ -68,7 +68,12 @@ od_url <- function(portal, dataset_id,
   left <- paste0("https://", portal, "/api/v2/catalog/datasets/")
   paste(left, dataset_id, params, sep = "")
 }
-"https://data.nantesmetropole.fr/api/v2/catalog/datasets/244400404_nombre-convives-jour-cantine-nantes-2011/exports/csv"
+
+# Creating a temp folder if needed to handle downloads
+if(!(dir.exists("temp"))) {
+  dir.create("temp")
+}
+
 
 freq_id = "244400404_nombre-convives-jour-cantine-nantes-2011"
 freq_od <- od_url(portal = portal, dataset_id = freq_id)
@@ -77,6 +82,11 @@ freq_od_temp_loc <- "temp/freq_od.csv"
 menus_id <- "244400404_menus-cantines-nantes-2011-2019"
 menus_od <- od_url(portal = portal, dataset_id = menus_id)
 menus_od_temp_loc <- "temp/menus_od.csv"
+
+
+vacs_od <- paste0("https://data.education.gouv.fr/explore/dataset/",
+                  "fr-en-calendrier-scolaire/download/?format=csv")
+vacs_od_temp_loc <- "temp/vacs_od.csv"
 
 # install_load(pkgs_to_load, to_load = TRUE)
 install_load(pkgs_not_load)
@@ -902,6 +912,30 @@ server <- function(input, output) {
                               "plats pour",
                               length(unique(new_menus$date)), 
                               "jours de service."),
+                 type = "success")
+      
+    })
+    
+    ### Import vacations from open data ----------------------------------------
+    observeEvent(input$add_vacs_od, {
+      httr::GET(vacs_od, # httr_progress(waitress_od),
+                httr::write_disk(vacs_od_temp_loc, overwrite = TRUE))
+      old_vacs <- dt()$vacs
+      new_vacs <- readr::read_delim(vacs_od_temp_loc, delim = ";") %>%
+        dplyr::filter(zones == "Zone B") %>%
+        dplyr::select(annee_scolaire, vacances_nom = description,
+                      date_debut = start_date, date_fin = end_date) %>%
+        dplyr::mutate(zone = "B", vacances = 1, 
+                      date_debut = as.Date(date_debut),
+                      date_fin = as.Date(date_fin)) %>%
+        dplyr::anti_join(old_vacs)
+      new_vacs %>%
+        dplyr::bind_rows(old_vacs) %>%
+        readr::write_csv(index$path[index$name == "vacs"])
+      shinyalert(title = "Import des vacances depuis l'open data de l'éducation nationale réussi !",
+                 text = paste("Ajout des vacances scolaires pour la Zone B, pour",
+                              nrow(new_vacs), 
+                              "périodes de vacances."),
                  type = "success")
       
     })
