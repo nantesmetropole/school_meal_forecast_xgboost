@@ -20,25 +20,6 @@ if (!reticulate::virtualenv_exists(envname = "venv_shiny_app")) {
 }
 reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
-## Source parameters -----------------------------------------------------------
-
-# A function to build open data urls from portal and dataset id
-portal = "data.nantesmetropole.fr"
-
-od_url <- function(portal, dataset_id, 
-                   params = "/exports/csv") {
-    left <- paste0("https://", portal, "/api/v2/catalog/datasets/")
-    paste(left, dataset_id, params, sep = "")
-}
-"https://data.nantesmetropole.fr/api/v2/catalog/datasets/244400404_nombre-convives-jour-cantine-nantes-2011/exports/csv"
-
-freq_id = "244400404_nombre-convives-jour-cantine-nantes-2011"
-freq_od <- od_url(portal = portal, dataset_id = freq_id)
-od_temp_loc <- "temp/freq_od.csv"
-
-menus_id <- "244400404_menus-cantines-nantes-2011-2019"
-menus_od <- od_url(portal = portal, dataset_id = menus_id)
-
 # Libraries -------------------------------------------------------------------
 library(magrittr)
 library(lubridate)
@@ -78,6 +59,24 @@ index <- dplyr::tribble(
     "map_schools",  "mappings/mapping_ecoles_cantines.csv",
     "map_freqs",    "mappings/mapping_frequentation_cantines.csv") %>%
     dplyr::mutate(path = paste(data_path, path, sep = "/"))
+
+# A function to build open data urls from portal and dataset id
+portal = "data.nantesmetropole.fr"
+
+od_url <- function(portal, dataset_id, 
+                   params = "/exports/csv") {
+  left <- paste0("https://", portal, "/api/v2/catalog/datasets/")
+  paste(left, dataset_id, params, sep = "")
+}
+"https://data.nantesmetropole.fr/api/v2/catalog/datasets/244400404_nombre-convives-jour-cantine-nantes-2011/exports/csv"
+
+freq_id = "244400404_nombre-convives-jour-cantine-nantes-2011"
+freq_od <- od_url(portal = portal, dataset_id = freq_id)
+freq_od_temp_loc <- "temp/freq_od.csv"
+
+menus_id <- "244400404_menus-cantines-nantes-2011-2019"
+menus_od <- od_url(portal = portal, dataset_id = menus_id)
+menus_od_temp_loc <- "temp/menus_od.csv"
 
 # install_load(pkgs_to_load, to_load = TRUE)
 install_load(pkgs_not_load)
@@ -775,8 +774,8 @@ server <- function(input, output) {
     ### Import attendance OD -------------------------------------------------
     observeEvent(input$add_effs_real_od, {
         httr::GET(freq_od, # httr_progress(waitress_od),
-                  httr::write_disk(od_temp_loc, overwrite = TRUE))
-        to_add <- arrow::read_delim_arrow("temp/freq_od.csv", delim = ";",
+                  httr::write_disk(freq_od_temp_loc, overwrite = TRUE))
+        to_add <- arrow::read_delim_arrow(freq_od_temp_loc, delim = ";",
                                           col_select = c(
                                               site_type, date, prevision_s = prevision, reel_s = reel, site_nom
                                           )) %>%
@@ -873,16 +872,37 @@ server <- function(input, output) {
           # arrange(date, rang) %>% # nicer to inspect the table this way
           dplyr::mutate(date = format(date, "%d/%m/%Y")) %>%
           dplyr::filter(!(date %in% dt()$menus$date)) 
-        dplyr::bind_rows(menus, new_menus) %>%
+        dplyr::bind_rows(dt()$menus, new_menus) %>%
           readr::write_csv(index$path[index$name == "menus"])
-        shinyalert(title = "Import des menus depuis Fusion réussi !",
-                   text = paste("Ajout des fréquentation par type de convive pour",
+        shinyalert(title = "Import des menus depuis l'open data réussi !",
+                   text = paste("Ajout des menus de convive pour",
                                 nrow(new_menus), 
-                                "effectifs de repas par établissement pour",
+                                "plats pour",
                                 length(unique(new_menus$date)), 
                                 "jours de service."),
                    type = "success")
       }
+      
+    })
+    
+    ### Import menus OD -------------------------------------------------
+    observeEvent(input$add_menus_od, {
+      httr::GET(menus_od, # httr_progress(waitress_od),
+                httr::write_disk(menus_od_temp_loc, overwrite = TRUE))
+      new_menus <- arrow::read_delim_arrow(menus_od_temp_loc, delim = ";") %>%
+        dplyr::mutate(date = format(date, "%d/%m/%Y")) %>%
+        dplyr::filter(!(date %in% dt()$menus$date))
+      menu_path <- as.character(index[index$name == "menus", "path"])
+      menus <- readr::read_csv(menu_path)
+      dplyr::bind_rows(menus, new_menus) %>%
+        readr::write_csv(index$path[index$name == "menus"])
+      shinyalert(title = "Import des menus depuis l'open data réussi !",
+                 text = paste("Ajout des menus de convive pour",
+                              nrow(new_menus), 
+                              "plats pour",
+                              length(unique(new_menus$date)), 
+                              "jours de service."),
+                 type = "success")
       
     })
     
