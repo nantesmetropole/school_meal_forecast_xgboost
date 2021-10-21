@@ -922,13 +922,14 @@ server <- function(input, output) {
                 httr::write_disk(vacs_od_temp_loc, overwrite = TRUE))
       old_vacs <- dt()$vacs
       new_vacs <- readr::read_delim(vacs_od_temp_loc, delim = ";") %>%
-        dplyr::filter(zones == "Zone B") %>%
+        dplyr::filter(location == "Nantes" & population != "Enseignants")  %>%
         dplyr::select(annee_scolaire, vacances_nom = description,
                       date_debut = start_date, date_fin = end_date) %>%
         dplyr::mutate(zone = "B", vacances = 1, 
                       date_debut = as.Date(date_debut),
                       date_fin = as.Date(date_fin)) %>%
-        dplyr::anti_join(old_vacs)
+        # dplyr::anti_join(old_vacs)
+        dplyr::filter(!(annee_scolaire %in% old_vacs$annee_scolaire))
       new_vacs %>%
         dplyr::bind_rows(old_vacs) %>%
         readr::write_csv(index$path[index$name == "vacs"])
