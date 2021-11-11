@@ -60,6 +60,13 @@ index <- dplyr::tribble(
     "map_freqs",    "mappings/mapping_frequentation_cantines.csv") %>%
     dplyr::mutate(path = paste(data_path, path, sep = "/"))
 
+# Begin and end year for selecting school years when loading headcounts
+
+schoolyear_hq_start <- 2010
+
+schoolyear_hq_end <- 2025
+
+
 # A function to build open data urls from portal and dataset id
 portal = "data.nantesmetropole.fr"
 
@@ -83,6 +90,10 @@ menus_id <- "244400404_menus-cantines-nantes-2011-2019"
 menus_od <- od_url(portal = portal, dataset_id = menus_id)
 menus_od_temp_loc <- "temp/menus_od.csv"
 
+
+hc_id <- "244400404_effectifs-eleves-ecoles-publiques-maternelles-elementaires-nantes"
+hc_od <- od_url(portal = portal, dataset_id = hc_id)
+hc_od_temp_loc <- "temp/headcounts_od.csv"
 
 vacs_od <- paste0("https://data.education.gouv.fr/explore/dataset/",
                   "fr-en-calendrier-scolaire/download/?format=csv")
@@ -298,6 +309,19 @@ load_fusion <- function(x, freqs) {
                type = "success")
 }
 
+# A funciton to generate a vector of school years
+schoolyears <- function(year_start, year_end) {
+  if(!(year_start > 2000 & year_end < 2050 & year_start < year_end)) {
+    print("Specified year must be integers between 2000 and 2050 and start must be before end.")
+  } else {
+    left_side <- year_start:year_end
+    right_side <- left_side + 1
+    schoolyears <- paste(left_side, right_side, sep = "-")
+    return (schoolyears)
+  }
+}
+
+hc_years <- schoolyears(schoolyear_hq_start, schoolyear_hq_end)
 
 # UI ----------------------------------------------------------------------
 ui <- navbarPage("Prévoir commandes et fréquentation",
@@ -384,10 +408,17 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                                 type = "button",
                                                 class="action-button",
                                                 HTML("?"))),
-                                  fileInput("add_strikes", label = NULL,
+                                  actionButton("add_hc_od", "Open data",
+                                               icon = icon("cloud-download")),
+                                  fileInput("add_headcounts", label = NULL,
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier sur le PC",
+                                            accept = c(".xls", ".xlsx"),
                                             width = "271px"),
+                                  selectInput("schoolyear_hc", NULL,
+                                              choices = c("Préciser l'année",
+                                                hc_years),
+                                              width = "271px"),
                                   p(strong("Vacances scolaires pour la zone B"),
                                     tags$button(id = "help_holi",
                                                 type = "button",
@@ -466,7 +497,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
 # Server ------------------------------------------------------------------
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
+server <- function(session, input, output) {
     
     
     # Reactive values for result display -----------------------------------
@@ -939,6 +970,53 @@ server <- function(input, output) {
                               "périodes de vacances."),
                  type = "success")
       
+    })
+    
+    ### Import headcounts  ---------------------------------------------
+    
+    # Manually load datafile
+    observeEvent(input$add_headcounts, {
+      file_in <- input$add_headcounts
+      if (stringr::str_starts(input$schoolyear_hc, "[0-9]", negate = TRUE)) {
+        shinyalert("Sélectionner une année", 
+                   "Veuillez sélectionner l'année scolaire correspondante au fichier importé et relancer l'import.",
+                   type = "error")
+      } else {
+        an_scol_import <- input$schoolyear_hc
+        hc_new <- readxl::read_excel(file_in$datapath, 
+                                     skip = 1) %>%
+          dplyr::filter(!is.na(.[[colnames(.)[1]]])) %>%
+          dplyr::select(ecole = Ecoles, effectif = starts_with("Total g")) %>%
+          dplyr::mutate(annee_scolaire = an_scol_import)
+        hc_all <- dt()$effs %>%
+          filter(!(paste(ecole, annee_scolaire) %in% paste(hc_new$ecole, hc_new$annee_scolaire))) %>%
+          dplyr::bind_rows(hc_new) %>%
+          readr::write_csv(index$path[index$name == "effs"])
+        shinyalert(title = "Import manuel des effectifs réussi !",
+                   text = paste("Ajout de ",
+                                nrow(hc_new), 
+                                "effectifs d'écoles."),
+                   type = "success")
+      }
+    })
+    
+    ### Import headcounts OD -------------------------------------------------
+    observeEvent(input$add_hc_od, {
+      old_hc <- dt()$effs
+      httr::GET(hc_od, # httr_progress(waitress_od),
+                httr::write_disk(hc_od_temp_loc, overwrite = TRUE))
+      new_hc <- arrow::read_delim_arrow(hc_od_temp_loc, delim = ";") %>%
+        dplyr::select(ecole, annee_scolaire, effectif)
+      old_hc <- dt()$effs %>%
+        dplyr::filter(!(paste(ecole, annee_scolaire) %in% paste(new_hc$ecole, new_hc$annee_scolaire)))
+      hc_path <- as.character(index[index$name == "effs", "path"])
+      dplyr::bind_rows(old_hc, new_hc) %>%
+        readr::write_csv(index$path[index$name == "effs"])
+      shinyalert(title = "Import des effectifs depuis l'open data réussi !",
+                 text = paste("Ajout de",
+                              nrow(new_hc), 
+                              "effectifs d'écoles."),
+                 type = "success")
     })
     
     ## Launch model ------------------------------------------------------------
