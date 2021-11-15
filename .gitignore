@@ -1,0 +1,15 @@
+*.Rproj
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+rsconnect/
+meal_forecast_xgboost.Rproj
+output/
+.profile
+__pycache__/
+reticulate_setup.R
+reprex.*
+temp/
+tests/
+secret.Rdata

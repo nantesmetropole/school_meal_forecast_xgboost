@@ -185,12 +185,6 @@ def train_and_predict(column_to_predict, training_type, min_date, max_date, begi
             file.write('\n')
         file.close()
 
-    if training_type == "prophet":
-        preds = app.algorithms.prophet_train_and_predict(
-            column_to_predict,
-            train_data,
-            prediction_input_data)
-
     if training_type == "benchmark":
         preds = app.algorithms.benchmark_train_and_predict(
             column_to_predict,
@@ -241,6 +235,7 @@ def train_and_predict(column_to_predict, training_type, min_date, max_date, begi
 
         preds["relative_error"] = preds["output"] - preds[column_to_predict]
 
+        ## This can generate errors on windows with Reticulate
         plot_error(preds, "result_xgb_error")
     else:
         print("######### The app has run on new data, results cannot be evaluated. ########")
