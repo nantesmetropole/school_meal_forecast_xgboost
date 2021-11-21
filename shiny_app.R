@@ -875,8 +875,8 @@ server <- function(session, input, output) {
                  UID=SYSDBA; PWD=", secret, ";
                  DBNAME=C:\\Users\\FBEDECARRA\\Documents\\Fusion\\FUSION.FDB;"),
                                   timeout = 10)
-            dt_in <- dbReadTable(con, "VIFC_EFFECTIFS_REEL_PREV_CNS") %>%
-                select(DATPLGPRESAT, NOMSAT, LIBPRE, LIBCON, 
+            dt_in <- DBI::dbReadTable(con, "VIFC_EFFECTIFS_REEL_PREV_CNS") %>%
+                dplyr::select(DATPLGPRESAT, NOMSAT, LIBPRE, LIBCON, 
                        TOTEFFREE, TOTEFFPREV) %>%
                 transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
                 load_fusion(freqs = dt()$freqs)
