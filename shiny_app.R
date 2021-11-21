@@ -28,7 +28,7 @@ library(waiter)
 # library(dplyr)
 # library(tidyr)
 
-# A function to install required functions
+# A function to install required packages
 install_load <- function(mypkg, to_load = FALSE) {
     for (i in seq_along(mypkg)) {
         if (!is.element(mypkg[i], installed.packages()[,1])) {
@@ -309,7 +309,7 @@ load_fusion <- function(x, freqs) {
                type = "success")
 }
 
-# A funciton to generate a vector of school years
+# A function to generate a vector of school years
 schoolyears <- function(year_start, year_end) {
   if(!(year_start > 2000 & year_end < 2050 & year_start < year_end)) {
     print("Specified year must be integers between 2000 and 2050 and start must be before end.")
@@ -989,7 +989,7 @@ server <- function(session, input, output) {
           dplyr::select(ecole = Ecoles, effectif = starts_with("Total g")) %>%
           dplyr::mutate(annee_scolaire = an_scol_import)
         hc_all <- dt()$effs %>%
-          filter(!(paste(ecole, annee_scolaire) %in% paste(hc_new$ecole, hc_new$annee_scolaire))) %>%
+          dplyr::filter(!(paste(ecole, annee_scolaire) %in% paste(hc_new$ecole, hc_new$annee_scolaire))) %>%
           dplyr::bind_rows(hc_new) %>%
           readr::write_csv(index$path[index$name == "effs"])
         shinyalert(title = "Import manuel des effectifs réussi !",
