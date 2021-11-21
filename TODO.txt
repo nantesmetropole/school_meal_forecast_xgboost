@@ -1,6 +1,7 @@
 # EN COURS ------------------------------------------
 Résoudre Bug démarrage
 Rrevoir les écarts entre labels 
+Ajouter les 
 Réduire le nombre de méthodes d'import
 Visualiser les prévision en ligne et pas histogramme
 
