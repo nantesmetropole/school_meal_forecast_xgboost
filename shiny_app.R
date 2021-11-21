@@ -989,7 +989,7 @@ server <- function(session, input, output) {
           dplyr::select(ecole = Ecoles, effectif = starts_with("Total g")) %>%
           dplyr::mutate(annee_scolaire = an_scol_import)
         hc_all <- dt()$effs %>%
-          filter(!(paste(ecole, annee_scolaire) %in% paste(hc_new$ecole, hc_new$annee_scolaire))) %>%
+          dplyr::filter(!(paste(ecole, annee_scolaire) %in% paste(hc_new$ecole, hc_new$annee_scolaire))) %>%
           dplyr::bind_rows(hc_new) %>%
           readr::write_csv(index$path[index$name == "effs"])
         shinyalert(title = "Import manuel des effectifs réussi !",
