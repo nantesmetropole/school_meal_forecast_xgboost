@@ -5,10 +5,8 @@ Mise à jour du graph de disponibilité.
 # EN COURS ------------------------------------------
 Résoudre Bug démarrage
 Rrevoir les écarts entre labels 
-Ajouter les 
 Réduire le nombre de méthodes d'import
 Visualiser les prévision en ligne et pas histogramme
-
 Ajouter la disponibilité des 
 Ajouter effectifs dans le graph de disponibilité
 
