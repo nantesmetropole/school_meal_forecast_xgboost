@@ -1,3 +1,7 @@
+# BUG APRES TEST -----------------------------------
+Mise à jour du graph de disponibilité.
+
+
 # EN COURS ------------------------------------------
 Résoudre Bug démarrage
 Rrevoir les écarts entre labels 
