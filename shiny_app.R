@@ -872,12 +872,12 @@ server <- function(session, input, output) {
     ### Import attendance parquet ---------------------------------------------
     # Manually load datafile
     observeEvent(input$add_effs_real, {
-        file_in <- input$add_effs_real
-        dt_in <- arrow::read_parquet(file_in$datapath,
-                                     col_select = c("DATPLGPRESAT", "NOMSAT", "LIBPRE",
-                                                    "LIBCON","TOTEFFREE", "TOTEFFPREV")) %>%
-            transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
-            load_fusion(freqs = dt()$freqs)
+        # file_in <- input$add_effs_real
+        # dt_in <- arrow::read_parquet(file_in$datapath,
+        #                              col_select = c("DATPLGPRESAT", "NOMSAT", "LIBPRE",
+        #                                             "LIBCON","TOTEFFREE", "TOTEFFPREV")) %>%
+        #     transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
+        #     load_fusion(freqs = dt()$freqs)
     })
     
     
