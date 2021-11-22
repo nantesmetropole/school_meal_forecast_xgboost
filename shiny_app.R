@@ -340,10 +340,12 @@ update_mapping_cafet_freq <- function(x,
                   cantine_nom = site_nom,
                   cantine_type = site_type)
   
-  map_freq <- map_freq %>%
-    dplyr::bind_rows(new_site_names)
+  if (nrow(new_site_names) > 0) {
+    map_freq <- map_freq %>%
+      dplyr::bind_rows(new_site_names)
+    readr::write_csv(map_freq, map_freq_loc)
+  }
   
-  return(map_freq)
 }
 
 # UI ----------------------------------------------------------------------
