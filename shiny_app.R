@@ -323,6 +323,27 @@ schoolyears <- function(year_start, year_end) {
 
 hc_years <- schoolyears(schoolyear_hq_start, schoolyear_hq_end)
 
+# A function to enrich cafet list after frequentation import
+update_mapping_cafet_freq <- function(x, 
+                                      map_freq_loc = "tests/data/mappings/mapping_frequentation_cantines.csv") {
+  map_freq <-  readr::read_csv(map_freq_loc)
+  
+  new_site_names <- x %>%
+    dplyr::select(site_nom) %>%
+    unique() %>%
+    dplyr::filter(!(site_nom %in% map_freq$site_nom)) %>%
+    dplyr::left_join(dplyr::select(x, site_nom, site_type), by = "site_nom") %>%
+    unique() %>%
+    dplyr::mutate(site_type = ifelse(is.na(site_type), "M/E", site_type),
+                  cantine_nom = site_nom,
+                  cantine_type = site_type)
+  
+  map_freq <- map_freq %>%
+    dplyr::bind_rows(new_site_names)
+  
+  return(map_freq)
+}
+
 # UI ----------------------------------------------------------------------
 ui <- navbarPage("Prévoir commandes et fréquentation",
                  ## Result visualization ----------------------------------------------------
@@ -827,6 +848,8 @@ server <- function(session, input, output) {
         to_add %>%
             dplyr::bind_rows(dt()$freqs) %>%
             readr::write_csv(index$path[index$name == "freqs"])
+        
+        update_mapping_cafet_freq(to_add)
         shinyalert(title = "Import réussi !",
                    text = paste("Ajout de",
                                 nrows_to_add,
@@ -880,6 +903,7 @@ server <- function(session, input, output) {
                        TOTEFFREE, TOTEFFPREV) %>%
                 transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
                 load_fusion(freqs = dt()$freqs)
+            update_mapping_cafet_freq(dt_in)
         }
         
     })
