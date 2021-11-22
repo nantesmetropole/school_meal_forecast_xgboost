@@ -491,8 +491,8 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                                  min = 0, max = 20, value = 10, step = 1, round = TRUE),
                                      br(), br(),
                                      selectInput("training_type", "Algorithme de prédiction :",
-                                                 c("XGBoost simple" = "xgb", 
-                                                   "XGBoost avec intervalle de confiance" = "xgb_interval"))),
+                                                 c("XGBoost avec intervalle de confiance" = "xgb_interval",
+                                                   "XGBoost simple" = "xgb"))),
                               column(4,
                                      checkboxGroupInput("model_options", "Autres options",
                                                         c("Réexécuter la préparation des données" = "preprocessing", 
@@ -506,6 +506,8 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  
                  ##  UI display of server parameters --------------------------------------------------
                  tabPanel("Superviser", 
+                          plotOutput("error_by_school"),
+                          plotOutput("error_global"),
                           h3('Information système'),
                           "(Ces valeurs changent selon le poste ou serveur qui fait tourner l'application)",
                           hr(),
@@ -1082,8 +1084,82 @@ server <- function(session, input, output) {
     })
     
     
+    ## Compute and render prevision errors -------------------------------------
+    
+    consolidated <- reactive({
+      consolid <- dt()$freqs %>%
+        dplyr::mutate(date = as.Date(date)) %>%
+        dplyr::right_join(prev(),
+                          by = c("date" = "date_str", 
+                                 "site_nom" = "cantine_nom")) %>%
+        dplyr::select(date, site_nom, site_type, prevision, reel, output) %>%
+        dplyr::left_join(readr::read_csv(index$path[index$name == "strikes"]),
+                         by = "date")
+      
+      consolid <- consolid %>%
+        dplyr::mutate(`Erreur de prédiction` =  output - reel,
+                      type = "Modèle") %>%
+        dplyr::bind_rows(dplyr::mutate(consolid, 
+                                       `Erreur de prédiction` =  prevision - reel,
+                                       type = "Agents")) %>%
+        dplyr::filter(is.na(greve) & reel != 0)  %>%
+        dplyr::filter(abs(`Erreur de prédiction`) < 100) %>%
+        dplyr::mutate(Mois = paste(lubridate::year(date), 
+                                   lubridate::month(date), sep = "-")) %>%
+        dplyr::group_by(type) 
+      
+      return(consolid)
+    })
+    
+    distance <- reactive({
+      consolidated() %>%
+        dplyr::summarise(mean_error = mean(mean(`Erreur de prédiction`, 
+                                                na.rm = TRUE)))
+    })
+      
+    
+    output$error_by_school <- renderPlot({ 
+     consolidated() %>%
+        ggplot2::ggplot(ggplot2::aes(x = `Erreur de prédiction`)) + 
+        ggplot2::geom_density(ggplot2::aes(y = ..count.., color = type)) +
+        ggplot2::geom_vline(ggplot2::aes(xintercept = mean_error, color = type),
+                            data = distance(), linetype = "dashed") +
+        ggplot2::labs(title = "Erreurs de prédiction quotidiennes par cantine",
+                      x = "Erreur de prédiction : densité (courbe) et moyenne (pointillés)",
+                      y = "Occurence (densité lissée)")
+    })
     
     
+    global <- reactive({
+      consolidated() %>%
+        dplyr::mutate(`Année` = ifelse(month(date) > 7,
+                                       paste(year(date), year(date)+1, sep = "-"),
+                                       paste(year(date)-1, year(date), sep = "-"))) %>%
+        dplyr::group_by(date, `Année`, type) %>%
+        dplyr::summarise(`Erreur de prédiction` = sum(`Erreur de prédiction`,
+                                                      na.rm = TRUE))
+    })
+      
+
+    distance_global <- reactive({
+      global() %>%
+        dplyr::group_by(type) %>%
+        dplyr::summarise(mean_error = mean(mean(`Erreur de prédiction`,
+                                                na.rm = TRUE)))
+    })
+      
+
+    output$error_global <- renderPlot({ global() %>%
+        dplyr::group_by(type) %>%
+        ggplot2::ggplot(ggplot2::aes(x = `Erreur de prédiction`)) +
+        ggplot2::geom_density(ggplot2::aes(y = ..count.., color = type)) +
+        ggplot2::geom_vline(ggplot2::aes(xintercept = mean_error, color = type),
+                   data = distance_global(), linetype = "dashed") +
+        ggplot2::labs(title = "Erreurs de prédiction quotidiennes au global",
+             x = "Erreur de prédiction : densité (courbe) et moyenne (pointillés)",
+             y = "Fréquence (densité lissée, 1 = 100%)")
+    })
+
     ## System info -------------------------------------------------------------
     
     output$sysinfo <- DT::renderDataTable({
