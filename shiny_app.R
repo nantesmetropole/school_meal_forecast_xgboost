@@ -977,6 +977,21 @@ server <- function(session, input, output) {
       
     })
     
+    
+    ### Manually load strikes -------------------------------------------------
+    observeEvent(input$add_strikes, {
+      file_in <- input$add_strikes
+      dt_in <- readr::read_csv("greves_restauration_et_ou_ecoles.csv")#file_in$datapath)
+      dt_old <- readr::read_csv(index$path[index$name == "strikes"])
+      dt_new <- dplyr::anti_join(dt_in, dt_old, by = "date")
+      dt_old %>%
+        dplyr::bind_rows(dt_new) %>%
+        readr::write_csv(index$path[index$name == "strikes"])
+      shinyalert(title = "Import manuel des gèves réussi !",
+                 text = paste("Ajout des grèves pour ", nrow(dt_new), " jours."),
+                 type = "success")
+    })
+    
     ### Import vacations from open data ----------------------------------------
     observeEvent(input$add_vacs_od, {
       httr::GET(vacs_od, # httr_progress(waitress_od),
