@@ -1,3 +1,11 @@
+# Checklist premier lancement
+Télécharger les données de fréquentation depuis l'open data
+Télécharger les menus depuis l'open data
+Charger les grèves depuis un fichier local
+Charger les effectifs depuis l'open data
+
+
+
 # BUG APRES TEST -----------------------------------
 Mise à jour du graph de disponibilité.
 
