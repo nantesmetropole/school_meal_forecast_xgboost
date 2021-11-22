@@ -1078,7 +1078,7 @@ server <- function(session, input, output) {
             training_type = input$training_type,
             weeks_latency = input$week_latency
         )
-        dt$prev <- load_results()
+        # dt$prev <- load_results()
     })
     
     
