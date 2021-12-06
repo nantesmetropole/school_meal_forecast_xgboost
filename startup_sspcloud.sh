@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Est-ce que ça marche d'installer python au démarrage ?
+sudo apt install python3.8-venv
+
+
 # Create variables
 WORK_DIR=/home/rstudio/school_meal_forecast_xgboost
 REPO_URL=https://github.com/fBedecarrats/school_meal_forecast_xgboost
