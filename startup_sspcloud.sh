@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # Est-ce que ça marche d'installer python au démarrage ?
-sudo apt install python3.8-venv
+sudo apt update
+apt install -y python3-venv python3-pip
 
 
 # Create variables
