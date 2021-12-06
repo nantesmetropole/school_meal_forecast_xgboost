@@ -1,5 +1,23 @@
 # Set parameters -------------------------------------------------------------
 
+pkgs_to_load <- "shiny"
+pkgs_not_load <- c("shiny","purrr", "DT", "readr", "arrow", 
+                   "data.table", "stringr", "lubridate", "plotly", "forcats",
+                   "shinyalert", "dplyr", "tidyr", "shinyjs", "shinyhttr",
+                   "waiter", "odbc", "DBI", "waiter", "shinyalert")
+
+# A function to install required packages
+install_load <- function(mypkg, to_load = FALSE) {
+  for (i in seq_along(mypkg)) {
+    if (!is.element(mypkg[i], installed.packages()[,1])) {
+      install.packages(mypkg[i], repos="http://cran.irsn.fr/")
+    }
+    if (to_load) { library(mypkg[i], character.only=TRUE)  }
+  }
+}
+
+install_load("reticulate")
+
 ## Environment parameters
 # Appropriate .Rprofile needs to be included in the project folder
 # reticulate::virtualenv_remove("venv_shiny_app")
@@ -28,20 +46,9 @@ library(waiter)
 # library(dplyr)
 # library(tidyr)
 
-# A function to install required packages
-install_load <- function(mypkg, to_load = FALSE) {
-    for (i in seq_along(mypkg)) {
-        if (!is.element(mypkg[i], installed.packages()[,1])) {
-            install.packages(mypkg[i], repos="http://cran.irsn.fr/")
-        }
-        if (to_load) { library(mypkg[i], character.only=TRUE)  }
-    }
-}
-pkgs_to_load <- "shiny"
-pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", 
-                   "data.table", "stringr", "lubridate", "plotly", "forcats",
-                   "shinyalert", "dplyr", "tidyr", "shinyjs", "shinyhttr",
-                   "waiter", "odbc", "DBI")
+
+install_load(pkgs_to_load, to_load = TRUE)
+install_load(pkgs_not_load)
 
 
 # Parameters --------------------------------------------------------------
@@ -99,8 +106,6 @@ vacs_od <- paste0("https://data.education.gouv.fr/explore/dataset/",
                   "fr-en-calendrier-scolaire/download/?format=csv")
 vacs_od_temp_loc <- "temp/vacs_od.csv"
 
-# install_load(pkgs_to_load, to_load = TRUE)
-install_load(pkgs_not_load)
 
 # Python functions and R bindings ---------------------------------------------------
 reticulate::source_python("main.py")
