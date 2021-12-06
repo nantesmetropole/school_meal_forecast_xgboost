@@ -40,8 +40,8 @@ if (Sys.info()[['user']] == 'shiny'){
 } else if (Sys.info()[['user']] == "rstudio") { # This is for SSPCloud
   
   Sys.setenv(PYTHON_PATH = "/usr/bin/python3")
-  Sys.setenv(VIRTUALENV_NAME = VIRTUALENV_NAME)
-  Sys.setenv(RETICULATE_PYTHON = "/usr/bin/python3")
+  Sys.setenv(VIRTUALENV_NAME = "~/venv_shiny_app")
+ # Sys.setenv(RETICULATE_PYTHON = "/usr/bin/python3")
   
 } else {
   
