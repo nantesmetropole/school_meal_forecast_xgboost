@@ -39,6 +39,9 @@ if (!reticulate::virtualenv_exists(envname = "venv_shiny_app")) {
 reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
 # Libraries -------------------------------------------------------------------
+install_load(pkgs_to_load, to_load = TRUE)
+install_load(pkgs_not_load)
+
 library(magrittr)
 library(lubridate)
 library(shinyalert)
@@ -47,8 +50,6 @@ library(waiter)
 # library(tidyr)
 
 
-install_load(pkgs_to_load, to_load = TRUE)
-install_load(pkgs_not_load)
 
 
 # Parameters --------------------------------------------------------------
