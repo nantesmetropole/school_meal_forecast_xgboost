@@ -2,7 +2,7 @@
 
 # Est-ce que ça marche d'installer python au démarrage ?
 sudo apt update
-apt install -y python3-venv python3-pip
+sudo apt install -y python3-venv python3-pip
 
 
 # Create variables
