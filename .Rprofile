@@ -41,6 +41,7 @@ if (Sys.info()[['user']] == 'shiny'){
   
   Sys.setenv(PYTHON_PATH = "/usr/bin/python3")
   Sys.setenv(VIRTUALENV_NAME = VIRTUALENV_NAME)
+  Sys.setenv(RETICULATE_PYTHON = "/usr/bin/python3")
   
 } else {
   
