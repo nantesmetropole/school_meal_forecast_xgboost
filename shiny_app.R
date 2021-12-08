@@ -53,7 +53,7 @@ library(waiter)
 
 
 # Parameters --------------------------------------------------------------
-data_path <- "tests/data"
+data_path <- "input"
 index <- dplyr::tribble(
     ~name,          ~path,
     "schoolyears",  "calculators/annees_scolaires.csv",
