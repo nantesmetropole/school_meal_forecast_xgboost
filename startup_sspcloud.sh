@@ -19,6 +19,7 @@ mkdir $TEMP_DIR
 
 # Load the data from SSP Cloud S3 bucket
 mc mirror s3/fbedecarrats/diffusion/cantines/ $WORK_DIR
+chown -R rstudio:users ${WORK_DIR}
 
 # launch RStudio in the right project
 # Copied from InseeLab UtilitR
