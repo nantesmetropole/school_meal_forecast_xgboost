@@ -17,6 +17,8 @@ chown -R rstudio:users $WORK_DIR
 # Folders to store data and documentation
 mkdir $TEMP_DIR
 
+# Load the data from SSP Cloud S3 bucket
+mc cp --recursive s3/fbedecarrats/diffusion/cantines $WORK_DIR
 
 # launch RStudio in the right project
 # Copied from InseeLab UtilitR
