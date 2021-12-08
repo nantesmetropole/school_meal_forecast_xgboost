@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 rsconnect/
+input/
 output/
 .profile
 __pycache__/
