@@ -27,6 +27,7 @@ mkdir $TEMP_DIR
         {
             message('On charge directement le bon projet :-) ')
             rstudioapi::openProject('~/school_meal_forecast_xgboost')
+            rstudioapi::applyTheme('Merbivore')
             }
             }, action = 'append')
             " >> /home/rstudio/.Rprofile
