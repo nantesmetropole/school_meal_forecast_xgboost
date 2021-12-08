@@ -354,6 +354,24 @@ update_mapping_cafet_freq <- function(x,
   
 }
 
+# a function to sync training data or generated previsions to SSPCloud
+sync_ssp_cloud <- function(folders) {
+  # Check if the app is running on SSPCloud
+  if (Sys.info()[['user']] == "rstudio") {
+    # Then send selected objects to SSP Cloud
+    for (i in 1:length(folders)) {
+      folder <- folders[i]
+      # Check that folder name has a trailing slash and add it if needed
+      folder <- ifelse(stringr::str_ends(folder, "/"), folder, paste0(folder, "/"))
+      aws.s3::s3sync(path = folder,
+                     bucket = "fbedecarrats",
+                     prefix = paste0("diffusion/cantines/", folder), # diffusion to be able to share
+                     create = FALSE,
+                     region = "") # Important for the aws.s3 functions to work
+    }
+  }
+}
+
 # UI ----------------------------------------------------------------------
 ui <- navbarPage("Prévoir commandes et fréquentation",
                  ## Result visualization ----------------------------------------------------
@@ -864,6 +882,7 @@ server <- function(session, input, output) {
             readr::write_csv(index$path[index$name == "freqs"])
         
         update_mapping_cafet_freq(to_add)
+        sync_ssp_cloud("input")
         shinyalert(title = "Import réussi !",
                    text = paste("Ajout de",
                                 nrows_to_add,
@@ -918,6 +937,7 @@ server <- function(session, input, output) {
                 transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
                 load_fusion(freqs = dt()$freqs)
             update_mapping_cafet_freq(dt_in)
+            sync_ssp_cloud("input")
         }
         
     })
@@ -953,6 +973,7 @@ server <- function(session, input, output) {
           dplyr::filter(!(date %in% dt()$menus$date)) 
         dplyr::bind_rows(dt()$menus, new_menus) %>%
           readr::write_csv(index$path[index$name == "menus"])
+        sync_ssp_cloud("input")
         shinyalert(title = "Import des menus depuis l'open data réussi !",
                    text = paste("Ajout des menus de convive pour",
                                 nrow(new_menus), 
@@ -975,6 +996,7 @@ server <- function(session, input, output) {
       menus <- readr::read_csv(menu_path)
       dplyr::bind_rows(menus, new_menus) %>%
         readr::write_csv(index$path[index$name == "menus"])
+      sync_ssp_cloud("input")
       shinyalert(title = "Import des menus depuis l'open data réussi !",
                  text = paste("Ajout des menus de convive pour",
                               nrow(new_menus), 
@@ -995,6 +1017,7 @@ server <- function(session, input, output) {
       dt_old %>%
         dplyr::bind_rows(dt_new) %>%
         readr::write_csv(index$path[index$name == "strikes"])
+      sync_ssp_cloud("input")
       shinyalert(title = "Import manuel des gèves réussi !",
                  text = paste("Ajout des grèves pour ", nrow(dt_new), " jours."),
                  type = "success")
@@ -1017,6 +1040,7 @@ server <- function(session, input, output) {
       new_vacs %>%
         dplyr::bind_rows(old_vacs) %>%
         readr::write_csv(index$path[index$name == "vacs"])
+      sync_ssp_cloud("input")
       shinyalert(title = "Import des vacances depuis l'open data de l'éducation nationale réussi !",
                  text = paste("Ajout des vacances scolaires pour la Zone B, pour",
                               nrow(new_vacs), 
@@ -1087,6 +1111,11 @@ server <- function(session, input, output) {
             weeks_latency = input$week_latency
         )
         # dt$prev <- load_results()
+
+      # then send outputs to S3 storage if runing on SSPCloud
+      sync_ssp_cloud("output")
+      
+      
     })
     
     
