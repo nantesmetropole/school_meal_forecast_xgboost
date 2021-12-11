@@ -333,7 +333,8 @@ hc_years <- schoolyears(schoolyear_hq_start, schoolyear_hq_end)
 
 # A function to enrich cafet list after frequentation import
 update_mapping_cafet_freq <- function(x, 
-                                      map_freq_loc = "tests/data/mappings/mapping_frequentation_cantines.csv") {
+                                      map_freq_loc = paste0(data_path,
+                                                            "/mappings/mapping_frequentation_cantines.csv")) {
   map_freq <-  readr::read_csv(map_freq_loc)
   
   new_site_names <- x %>%
@@ -1099,16 +1100,17 @@ server <- function(session, input, output) {
     ## Launch model ------------------------------------------------------------
     observeEvent(input$launch_model, {
         run_verteego(
-            begin_date = as.character(input$daterange_forecast[1]),
-            column_to_predict =  input$column_to_predict,
-            confidence = input$confidence,
-            end_date = as.character(input$daterange_forecast[2]),
-            preprocessing = "preprocessing" %in% input$model_options,
-            remove_no_school = "remove_no_school" %in% input$model_options,
-            remove_outliers = "remove_outliers" %in% input$model_options,
-            start_training_date = as.character(input$start_training_date),
-            training_type = input$training_type,
-            weeks_latency = input$week_latency
+          data_path = data_path,
+          begin_date = as.character(input$daterange_forecast[1]),
+          column_to_predict =  input$column_to_predict,
+          confidence = input$confidence,
+          end_date = as.character(input$daterange_forecast[2]),
+          preprocessing = "preprocessing" %in% input$model_options,
+          remove_no_school = "remove_no_school" %in% input$model_options,
+          remove_outliers = "remove_outliers" %in% input$model_options,
+          start_training_date = as.character(input$start_training_date),
+          training_type = input$training_type,
+          weeks_latency = input$week_latency
         )
         # dt$prev <- load_results()
 
