@@ -53,7 +53,7 @@ library(waiter)
 
 
 # Parameters --------------------------------------------------------------
-data_path <- "input"
+data_path <- "tests/data"
 index <- dplyr::tribble(
     ~name,          ~path,
     "schoolyears",  "calculators/annees_scolaires.csv",
@@ -85,10 +85,12 @@ od_url <- function(portal, dataset_id,
 }
 
 # Creating a temp folder if needed to handle downloads
-if(!(dir.exists("temp"))) {
+if (!(dir.exists("temp"))) {
   dir.create("temp")
 }
-
+if (!(dir.exists(data_path))) {
+  dir.create(data_path)
+}
 
 freq_id = "244400404_nombre-convives-jour-cantine-nantes-2011"
 freq_od <- od_url(portal = portal, dataset_id = freq_id)
@@ -1012,7 +1014,7 @@ server <- function(session, input, output) {
     ### Manually load strikes -------------------------------------------------
     observeEvent(input$add_strikes, {
       file_in <- input$add_strikes
-      dt_in <- readr::read_csv("greves_restauration_et_ou_ecoles.csv")#file_in$datapath)
+      dt_in <- readr::read_csv(file_in$datapath)
       dt_old <- readr::read_csv(index$path[index$name == "strikes"])
       dt_new <- dplyr::anti_join(dt_in, dt_old, by = "date")
       dt_old %>%
