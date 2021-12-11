@@ -20,3 +20,13 @@ Currently a number of guests is predicted but this does not take into account th
 
 ### Interface for the model
 Command line tools may not be easy to use. Thus providing a dashboard or an API to help the user to train and monitor models but also to load new data seems important.
+> Project ongoing, consider improvements:
+- generate prevision by selecting inter-vacation periods
+- hide/show advanced tab panels
+- improve supervision graphs (and make them interactive)
+   - highest prevision errors
+   - hints on what a good error graph looks like
+   - select time
+   
+
+
