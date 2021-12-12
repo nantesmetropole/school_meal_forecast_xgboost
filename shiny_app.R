@@ -151,10 +151,12 @@ run_verteego <- function(begin_date = '2017-09-30',
 
 # A function to load the outputs of the model forecasts
 load_results <- function(folder = "output", pattern = "results_by_cafeteria.*csv") {
-    dir(folder, pattern = pattern, full.names = TRUE) %>%
-        dplyr::tibble(filename = ., created = file.info(.)$ctime) %>%
-        dplyr::mutate(file_contents = purrr::map(filename, ~ arrow::read_csv_arrow(.))) %>%
-        tidyr::unnest(cols = c(file_contents))
+  dir(folder, pattern = pattern, full.names = TRUE) %>%
+    dplyr::tibble(filename = ., created = file.info(.)$ctime) %>%
+    dplyr::mutate(file_contents = purrr::map(filename, ~ arrow::read_csv_arrow(.))) %>%
+    tidyr::unnest(cols = c(file_contents)) %>%
+    dplyr::arrange(desc(created)) %>%
+    dplyr::distinct(date_str, cantine_nom, cantine_type, .keep_all = TRUE)
 }
 
 # A function to load the input data. Defaults to the index specified above
