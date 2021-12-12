@@ -42,7 +42,7 @@ def add_feature_special_meals(all_dates, col_to_merge, date_format, data_path):
 
     for spcial_menu, list_of_food in dict_special_dishes.items():
         menus[spcial_menu] = menus['plat']
-        menus[spcial_menu] = menus[spcial_menu].apply(lambda plat: any(word in plat.lower() for word in list_of_food))
+        menus[spcial_menu] = menus[spcial_menu].apply(lambda plat: any(re.search(re.escape(word), plat.lower()) for word in list_of_food))
 
     menus['info_menu'] = menus['plat']
     menus['info_menu'] = menus['info_menu'].apply(lambda plat: 1 if plat else 0)
