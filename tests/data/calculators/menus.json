@@ -8,7 +8,7 @@
       "porc": ["porc"],
       "viande_sans_porc": [
           "*",
-          "bolognaise",
+          "bolognaise(?!végéta|vegeta)",
           "merguez",
           "nuggets",
           "carne",
