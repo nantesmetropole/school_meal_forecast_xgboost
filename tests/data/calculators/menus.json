@@ -8,7 +8,7 @@
       "porc": ["porc"],
       "viande_sans_porc": [
           "*",
-          "bolognaise",
+          "bolognaise(?!végéta|vegeta)",
           "merguez",
           "nuggets",
           "carne",
@@ -30,5 +30,5 @@
           "foie",
           "burger"],
       "poisson": ["poisson", "thon", "lieu", "saumon", "cabillaud", "surimi", "truite", "crevette"],
-      "dessert": ["éclair", "eclair", "crêpe", "crepe", "gâteau", "gateau", "tarte"]
+      "dessert": ["éclair", "eclair", "crêpe", "crepe", "gâteau", "gateau", "tarte", "madeleine"]
   }

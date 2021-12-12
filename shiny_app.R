@@ -1,5 +1,23 @@
 # Set parameters -------------------------------------------------------------
 
+pkgs_to_load <- "shiny"
+pkgs_not_load <- c("shiny","purrr", "DT", "readr", "arrow", 
+                   "data.table", "stringr", "lubridate", "plotly", "forcats",
+                   "shinyalert", "dplyr", "tidyr", "shinyjs", "shinyhttr",
+                   "waiter", "odbc", "DBI", "waiter", "shinyalert")
+
+# A function to install required packages
+install_load <- function(mypkg, to_load = FALSE) {
+  for (i in seq_along(mypkg)) {
+    if (!is.element(mypkg[i], installed.packages()[,1])) {
+      install.packages(mypkg[i], repos="http://cran.irsn.fr/")
+    }
+    if (to_load) { library(mypkg[i], character.only=TRUE)  }
+  }
+}
+
+install_load("reticulate")
+
 ## Environment parameters
 # Appropriate .Rprofile needs to be included in the project folder
 # reticulate::virtualenv_remove("venv_shiny_app")
@@ -21,6 +39,9 @@ if (!reticulate::virtualenv_exists(envname = "venv_shiny_app")) {
 reticulate::use_virtualenv(virtualenv = virtualenv_dir, required = TRUE)
 
 # Libraries -------------------------------------------------------------------
+install_load(pkgs_to_load, to_load = TRUE)
+install_load(pkgs_not_load)
+
 library(magrittr)
 library(lubridate)
 library(shinyalert)
@@ -28,20 +49,7 @@ library(waiter)
 # library(dplyr)
 # library(tidyr)
 
-# A function to install required functions
-install_load <- function(mypkg, to_load = FALSE) {
-    for (i in seq_along(mypkg)) {
-        if (!is.element(mypkg[i], installed.packages()[,1])) {
-            install.packages(mypkg[i], repos="http://cran.irsn.fr/")
-        }
-        if (to_load) { library(mypkg[i], character.only=TRUE)  }
-    }
-}
-pkgs_to_load <- "shiny"
-pkgs_not_load <- c("shiny","reticulate", "purrr", "DT", "readr", "arrow", 
-                   "data.table", "stringr", "lubridate", "plotly", "forcats",
-                   "shinyalert", "dplyr", "tidyr", "shinyjs", "shinyhttr",
-                   "waiter", "odbc", "DBI")
+
 
 
 # Parameters --------------------------------------------------------------
@@ -66,6 +74,8 @@ schoolyear_hq_start <- 2010
 
 schoolyear_hq_end <- 2025
 
+# A parameter for the display of widgets on the "load data" page
+width_load_widgets <- "317px"
 
 # A function to build open data urls from portal and dataset id
 portal = "data.nantesmetropole.fr"
@@ -77,10 +87,12 @@ od_url <- function(portal, dataset_id,
 }
 
 # Creating a temp folder if needed to handle downloads
-if(!(dir.exists("temp"))) {
+if (!(dir.exists("temp"))) {
   dir.create("temp")
 }
-
+if (!(dir.exists(data_path))) {
+  dir.create(data_path)
+}
 
 freq_id = "244400404_nombre-convives-jour-cantine-nantes-2011"
 freq_od <- od_url(portal = portal, dataset_id = freq_id)
@@ -99,8 +111,6 @@ vacs_od <- paste0("https://data.education.gouv.fr/explore/dataset/",
                   "fr-en-calendrier-scolaire/download/?format=csv")
 vacs_od_temp_loc <- "temp/vacs_od.csv"
 
-# install_load(pkgs_to_load, to_load = TRUE)
-install_load(pkgs_not_load)
 
 # Python functions and R bindings ---------------------------------------------------
 reticulate::source_python("main.py")
@@ -143,10 +153,12 @@ run_verteego <- function(begin_date = '2017-09-30',
 
 # A function to load the outputs of the model forecasts
 load_results <- function(folder = "output", pattern = "results_by_cafeteria.*csv") {
-    dir(folder, pattern = pattern, full.names = TRUE) %>%
-        dplyr::tibble(filename = ., created = file.info(.)$ctime) %>%
-        dplyr::mutate(file_contents = purrr::map(filename, ~ arrow::read_csv_arrow(.))) %>%
-        tidyr::unnest(cols = c(file_contents))
+  dir(folder, pattern = pattern, full.names = TRUE) %>%
+    dplyr::tibble(filename = ., created = file.info(.)$ctime) %>%
+    dplyr::mutate(file_contents = purrr::map(filename, ~ arrow::read_csv_arrow(.))) %>%
+    tidyr::unnest(cols = c(file_contents)) %>%
+    dplyr::arrange(desc(created)) %>%
+    dplyr::distinct(date_str, cantine_nom, cantine_type, .keep_all = TRUE)
 }
 
 # A function to load the input data. Defaults to the index specified above
@@ -238,46 +250,48 @@ compute_availability <- function(x) {
 
 # A function to transform data from Fusion for training data
 transform_fusion <- function(x, check_against) {
-    x %>%
-        dplyr::rename(date = DATPLGPRESAT, site_nom = NOMSAT, repas = LIBPRE, convive = LIBCON,
-                      reel = TOTEFFREE, prev = TOTEFFPREV) %>%
-        dplyr::filter(repas == "DEJEUNER") %>%
-        dplyr::filter(stringr::str_starts(site_nom, "CL", negate = TRUE)) %>%
-        dplyr::filter(stringr::str_detect(site_nom, "TOURNEE", negate = TRUE)) %>%
-        dplyr::select(-repas) %>%
-        dplyr::mutate(convive = dplyr::recode(convive, 
-                                              "1MATER." = "maternelle",
-                                              "2GS." = "grande_section",
-                                              "3PRIMAIRE" = "primaire",
-                                              "4ADULTE" = "adulte"),
-                      site_nom = stringr::str_remove(site_nom, "[0-9]{3} "),
-                      site_nom = stringr::str_replace(site_nom, "COUDRAY MAT", "COUDRAY M\\."),
-                      site_nom = stringr::str_replace(site_nom, "MAT", "M"),
-                      site_nom = stringr::str_replace(site_nom, "COUDRAY ELEM", "COUDRAY E\\."),
-                      site_nom = stringr::str_replace(site_nom, "ELEM", "E"),
-                      site_nom = stringr::str_remove(site_nom, " M/E"),
-                      site_nom = stringr::str_remove(site_nom, " PRIM"),
-                      site_nom = stringr::str_remove(site_nom, "\\(.*\\)$"),
-                      site_nom = stringr::str_trim(site_nom),
-                      site_nom = stringr::str_replace(site_nom, "BAUT", "LE BAUT"),
-                      site_nom = stringr::str_replace(site_nom, "  ", " "),
-                      site_nom = stringr::str_replace(site_nom, "FOURNIER", "FOURNIER E"),
-                      site_nom = stringr::str_replace(site_nom, " E / ", "/"),
-                      site_nom = stringr::str_replace(site_nom, "MACE$", "MACE M"),
-                      site_nom = ifelse(!(site_nom %in% check_against) & stringr::str_ends(site_nom, " (E|M)"),
-                                        stringr::str_remove(site_nom, " (E|M)$"), site_nom),
-                      site_nom = stringr::str_replace(site_nom, "A.LEDRU-ROLLIN/S.BERNHARDT", 
-                                                      "LEDRU ROLLIN/SARAH BERNHARDT"),
-                      site_nom = stringr::str_replace(site_nom, "F.DALLET/DOCT TEILLAIS", 
-                                                      "FRANCOIS DALLET/DOCTEUR TEILLAIS")) %>%
-        dplyr::group_by(date, site_nom, convive) %>%
-        dplyr::summarise(reel = sum(reel, na.rm = TRUE),
-                         prev = sum(prev, na.rm = TRUE)) %>%
-        tidyr::pivot_wider(names_from = convive, values_from = c(reel, prev),
-                           values_fill = 0) %>%
-        dplyr::mutate(reel = reel_maternelle + reel_grande_section + reel_primaire + reel_adulte,
-                      prevision = prev_maternelle + prev_grande_section + prev_primaire + prev_adulte)
+  x %>%
+    dplyr::rename(date = DATPLGPRESAT, site_nom = NOMSAT, repas = LIBPRE, convive = LIBCON,
+                  reel = TOTEFFREE, prev = TOTEFFPREV) %>%
+    dplyr::filter(repas == "DEJEUNER") %>%
+    dplyr::filter(stringr::str_starts(site_nom, "CL", negate = TRUE)) %>%
+    dplyr::filter(stringr::str_detect(site_nom, "TOURNEE", negate = TRUE)) %>%
+    dplyr::select(-repas) %>%
+    dplyr::mutate(convive = dplyr::recode(convive, 
+                                          "1MATER." = "maternelle",
+                                          "2GS." = "grande_section",
+                                          "3PRIMAIRE" = "primaire",
+                                          "4ADULTE" = "adulte"),
+                  site_id = stringr::str_remove(site_nom, "[0-9]{3}"),
+                  site_nom = stringr::str_remove(site_nom, "[0-9]{3} "),
+                  site_nom = stringr::str_replace(site_nom, "COUDRAY MAT", "COUDRAY M\\."),
+                  site_nom = stringr::str_replace(site_nom, "MAT", "M"),
+                  site_nom = stringr::str_replace(site_nom, "COUDRAY ELEM", "COUDRAY E\\."),
+                  site_nom = stringr::str_replace(site_nom, "ELEM", "E"),
+                  site_nom = stringr::str_remove(site_nom, " M/E"),
+                  site_nom = stringr::str_remove(site_nom, " PRIM"),
+                  site_nom = stringr::str_remove(site_nom, "\\(.*\\)$"),
+                  site_nom = stringr::str_trim(site_nom),
+                  site_nom = stringr::str_replace(site_nom, "BAUT", "LE BAUT"),
+                  site_nom = stringr::str_replace(site_nom, "  ", " "),
+                  site_nom = stringr::str_replace(site_nom, "FOURNIER", "FOURNIER E"),
+                  site_nom = stringr::str_replace(site_nom, " E / ", "/"),
+                  site_nom = stringr::str_replace(site_nom, "MACE$", "MACE M"),
+                  site_nom = ifelse(!(site_nom %in% check_against) & stringr::str_ends(site_nom, " (E|M)"),
+                                    stringr::str_remove(site_nom, " (E|M)$"), site_nom),
+                  site_nom = stringr::str_replace(site_nom, "A.LEDRU-ROLLIN/S.BERNHARDT", 
+                                                  "LEDRU ROLLIN/SARAH BERNHARDT"),
+                  site_nom = stringr::str_replace(site_nom, "F.DALLET/DOCT TEILLAIS", 
+                                                  "FRANCOIS DALLET/DOCTEUR TEILLAIS")) %>%
+    dplyr::group_by(date, site_id, site_nom, convive) %>%
+    dplyr::summarise(reel = sum(reel, na.rm = TRUE),
+                     prev = sum(prev, na.rm = TRUE)) %>%
+    tidyr::pivot_wider(names_from = convive, values_from = c(reel, prev),
+                       values_fill = 0) %>%
+    dplyr::mutate(reel = reel_maternelle + reel_grande_section + reel_primaire + reel_adulte,
+                  prevision = prev_maternelle + prev_grande_section + prev_primaire + prev_adulte)
 }
+
 load_fusion <- function(x, freqs) {
     new_days <- x %>%
         dplyr::anti_join(freqs, by = c("date", "site_nom"))
@@ -309,7 +323,7 @@ load_fusion <- function(x, freqs) {
                type = "success")
 }
 
-# A funciton to generate a vector of school years
+# A function to generate a vector of school years
 schoolyears <- function(year_start, year_end) {
   if(!(year_start > 2000 & year_end < 2050 & year_start < year_end)) {
     print("Specified year must be integers between 2000 and 2050 and start must be before end.")
@@ -323,8 +337,52 @@ schoolyears <- function(year_start, year_end) {
 
 hc_years <- schoolyears(schoolyear_hq_start, schoolyear_hq_end)
 
+# A function to enrich cafet list after frequentation import
+update_mapping_cafet_freq <- function(x, 
+                                      map_freq_loc = paste0(data_path,
+                                                            "/mappings/mapping_frequentation_cantines.csv")) {
+  map_freq <-  readr::read_csv(map_freq_loc)
+  
+  new_site_names <- x %>%
+    dplyr::select(site_nom) %>%
+    unique() %>%
+    dplyr::filter(!(site_nom %in% map_freq$site_nom)) %>%
+    dplyr::left_join(dplyr::select(x, site_nom, site_type), by = "site_nom") %>%
+    unique() %>%
+    dplyr::mutate(site_type = ifelse(is.na(site_type), "M/E", site_type),
+                  cantine_nom = site_nom,
+                  cantine_type = site_type)
+  
+  if (nrow(new_site_names) > 0) {
+    map_freq <- map_freq %>%
+      dplyr::bind_rows(new_site_names)
+    readr::write_csv(map_freq, map_freq_loc)
+  }
+  
+}
+
+# a function to sync training data or generated previsions to SSPCloud
+sync_ssp_cloud <- function(folders) {
+  # Check if the app is running on SSPCloud
+  if (Sys.info()[['user']] == "rstudio") {
+    # Then send selected objects to SSP Cloud
+    for (i in 1:length(folders)) {
+      folder <- folders[i]
+      # Check that folder name has a trailing slash and add it if needed
+      folder <- ifelse(stringr::str_ends(folder, "/"), folder, paste0(folder, "/"))
+      aws.s3::s3sync(path = folder,
+                     bucket = "fbedecarrats",
+                     prefix = paste0("diffusion/cantines/", folder), # diffusion to be able to share
+                     create = FALSE,
+                     region = "") # Important for the aws.s3 functions to work
+    }
+  }
+}
+
 # UI ----------------------------------------------------------------------
-ui <- navbarPage("Prévoir commandes et fréquentation",
+ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
+                 theme = bslib::bs_theme(bootswatch = "simplex", version = 5),
+                 # cosmo, simplex
                  ## Result visualization ----------------------------------------------------
                  tabPanel("Consulter des prévisions",
                           # Hide temporary error messages
@@ -361,7 +419,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                           sidebarLayout(
                               sidebarPanel(
                                   shinyjs::inlineCSS(list(
-                                      ".shiny-input-container" = "margin-bottom: -20px",
+                                      ".shiny-input-container" = "margin-bottom: -1px",
                                       ".btn" = "margin-bottom: 5px"
                                   )),
                                   # sources for icons: https://icons.getbootstrap.com/
@@ -380,7 +438,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                             label = NULL,
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier extrait de Fusion",
-                                            width = "271px"),
+                                            width = width_load_widgets),
                                   p(strong("Menus pour la restauration scolaire"),
                                     tags$button(id = "help_menus",
                                                 type = "button",
@@ -393,7 +451,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                   fileInput("add_menus", label = NULL,
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier extrait de Fusion",
-                                            width = "271px"),
+                                            width = width_load_widgets),
                                   p(strong("Grèves (éducation ou restauration)"),
                                     tags$button(id = "help_strikes",
                                                 type = "button",
@@ -402,7 +460,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                   fileInput("add_strikes", label = NULL,
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier de suivi",
-                                            width = "271px"),
+                                            width = width_load_widgets),
                                   p(strong("Effectifs des écoles"),
                                     tags$button(id = "help_effs",
                                                 type = "button",
@@ -414,11 +472,11 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier sur le PC",
                                             accept = c(".xls", ".xlsx"),
-                                            width = "271px"),
+                                            width = width_load_widgets),
                                   selectInput("schoolyear_hc", NULL,
                                               choices = c("Préciser l'année",
                                                 hc_years),
-                                              width = "271px"),
+                                              width = width_load_widgets),
                                   p(strong("Vacances scolaires pour la zone B"),
                                     tags$button(id = "help_holi",
                                                 type = "button",
@@ -436,7 +494,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  ## Model parameters --------------------------------------------------------
                  tabPanel("Générer des prévisions",
                           fluidRow(
-                              column(4,
+                              column(3,
                                      selectInput("column_to_predict", "Variable que l'on cherche à prédire :",
                                                  c("Fréquentation réelle" = "reel", 
                                                    "Commandes par les écoles" = "prevision")),
@@ -458,7 +516,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                                format = "dd/mm/yyyy",
                                                language = "fr",
                                                weekstart = 1)),
-                              column(4,
+                              column(5,
                                      sliderInput("confidence", "Niveau de confiance :",
                                                  min = 0, max = 1, value = 0.9, step = 0.01),
                                      br(), br(),
@@ -466,8 +524,8 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                                                  min = 0, max = 20, value = 10, step = 1, round = TRUE),
                                      br(), br(),
                                      selectInput("training_type", "Algorithme de prédiction :",
-                                                 c("XGBoost simple" = "xgb", 
-                                                   "XGBoost avec intervalle de confiance" = "xgb_interval"))),
+                                                 c("XGBoost avec intervalle de confiance" = "xgb_interval",
+                                                   "XGBoost simple" = "xgb"))),
                               column(4,
                                      checkboxGroupInput("model_options", "Autres options",
                                                         c("Réexécuter la préparation des données" = "preprocessing", 
@@ -481,6 +539,8 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                  
                  ##  UI display of server parameters --------------------------------------------------
                  tabPanel("Superviser", 
+                          plotOutput("error_by_school"),
+                          plotOutput("error_global"),
                           h3('Information système'),
                           "(Ces valeurs changent selon le poste ou serveur qui fait tourner l'application)",
                           hr(),
@@ -489,7 +549,9 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                           verbatimTextOutput('which_python'),
                           verbatimTextOutput('python_version'),
                           verbatimTextOutput('ret_env_var'),
-                          verbatimTextOutput('venv_root'))
+                          verbatimTextOutput('venv_root')),
+                 bslib::nav_item(actionButton("set_simple", "Simple"),
+                                 actionButton("set_advanced", "Avancé"))
 )
 
 
@@ -498,8 +560,33 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
 
 # Define server logic required to draw a histogram
 server <- function(session, input, output) {
-    
-    
+  
+
+# Handle simple vs. advanced interface ------------------------------------
+  
+  # Start with hidden tabs
+  set_ui <- reactiveValues(simple = TRUE) 
+  hideTab(inputId = "tabs", target = "Superviser", session = session)
+  hideTab(inputId = "tabs", target = "Générer des prévisions", session = session)
+  hideTab(inputId = "tabs", target = "Charger des données", session = session)
+  
+  # Open advanced tabs on click
+  observeEvent(input$set_advanced, {
+    set_ui$simple <- FALSE
+    showTab(inputId = "tabs", target = "Superviser", session = session)
+    showTab(inputId = "tabs", target = "Générer des prévisions", session = session)
+    showTab(inputId = "tabs", target = "Charger des données", session = session)
+  }, ignoreInit = TRUE)
+  
+  # Close advanced tabs on click
+  observeEvent(input$set_simple, {
+    set_ui$simple <- TRUE
+    hideTab(inputId = "tabs", target = "Superviser", session = session)
+    hideTab(inputId = "tabs", target = "Générer des prévisions", session = session)
+    hideTab(inputId = "tabs", target = "Charger des données", session = session)
+    updateNavlistPanel(inputId = "tabs", session = session, selected = "Consulter des prévisions")
+  }, ignoreInit = TRUE)
+  
     # Reactive values for result display -----------------------------------
     
     
@@ -818,7 +905,9 @@ server <- function(session, input, output) {
                   httr::write_disk(freq_od_temp_loc, overwrite = TRUE))
         to_add <- arrow::read_delim_arrow(freq_od_temp_loc, delim = ";",
                                           col_select = c(
-                                              site_type, date, prevision_s = prevision, reel_s = reel, site_nom
+                                              site_id, site_type, date, 
+                                              prevision_s = prevision, 
+                                              reel_s = reel, site_nom
                                           )) %>%
             dplyr::anti_join(dt()$freqs)
         
@@ -827,6 +916,9 @@ server <- function(session, input, output) {
         to_add %>%
             dplyr::bind_rows(dt()$freqs) %>%
             readr::write_csv(index$path[index$name == "freqs"])
+        
+        update_mapping_cafet_freq(to_add)
+        sync_ssp_cloud("input")
         shinyalert(title = "Import réussi !",
                    text = paste("Ajout de",
                                 nrows_to_add,
@@ -845,12 +937,12 @@ server <- function(session, input, output) {
     ### Import attendance parquet ---------------------------------------------
     # Manually load datafile
     observeEvent(input$add_effs_real, {
-        file_in <- input$add_effs_real
-        dt_in <- arrow::read_parquet(file_in$datapath,
-                                     col_select = c("DATPLGPRESAT", "NOMSAT", "LIBPRE",
-                                                    "LIBCON","TOTEFFREE", "TOTEFFPREV")) %>%
-            transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
-            load_fusion(freqs = dt()$freqs)
+        # file_in <- input$add_effs_real
+        # dt_in <- arrow::read_parquet(file_in$datapath,
+        #                              col_select = c("DATPLGPRESAT", "NOMSAT", "LIBPRE",
+        #                                             "LIBCON","TOTEFFREE", "TOTEFFPREV")) %>%
+        #     transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
+        #     load_fusion(freqs = dt()$freqs)
     })
     
     
@@ -875,11 +967,13 @@ server <- function(session, input, output) {
                  UID=SYSDBA; PWD=", secret, ";
                  DBNAME=C:\\Users\\FBEDECARRA\\Documents\\Fusion\\FUSION.FDB;"),
                                   timeout = 10)
-            dt_in <- dbReadTable(con, "VIFC_EFFECTIFS_REEL_PREV_CNS") %>%
-                select(DATPLGPRESAT, NOMSAT, LIBPRE, LIBCON, 
+            dt_in <- DBI::dbReadTable(con, "VIFC_EFFECTIFS_REEL_PREV_CNS") %>%
+                dplyr::select(DATPLGPRESAT, NOMSAT, LIBPRE, LIBCON, 
                        TOTEFFREE, TOTEFFPREV) %>%
                 transform_fusion(check_against = dt()$map_freqs$cantine_nom) %>%
                 load_fusion(freqs = dt()$freqs)
+            update_mapping_cafet_freq(dt_in)
+            sync_ssp_cloud("input")
         }
         
     })
@@ -915,6 +1009,7 @@ server <- function(session, input, output) {
           dplyr::filter(!(date %in% dt()$menus$date)) 
         dplyr::bind_rows(dt()$menus, new_menus) %>%
           readr::write_csv(index$path[index$name == "menus"])
+        sync_ssp_cloud("input")
         shinyalert(title = "Import des menus depuis l'open data réussi !",
                    text = paste("Ajout des menus de convive pour",
                                 nrow(new_menus), 
@@ -937,6 +1032,7 @@ server <- function(session, input, output) {
       menus <- readr::read_csv(menu_path)
       dplyr::bind_rows(menus, new_menus) %>%
         readr::write_csv(index$path[index$name == "menus"])
+      sync_ssp_cloud("input")
       shinyalert(title = "Import des menus depuis l'open data réussi !",
                  text = paste("Ajout des menus de convive pour",
                               nrow(new_menus), 
@@ -945,6 +1041,22 @@ server <- function(session, input, output) {
                               "jours de service."),
                  type = "success")
       
+    })
+    
+    
+    ### Manually load strikes -------------------------------------------------
+    observeEvent(input$add_strikes, {
+      file_in <- input$add_strikes
+      dt_in <- readr::read_csv(file_in$datapath)
+      dt_old <- readr::read_csv(index$path[index$name == "strikes"])
+      dt_new <- dplyr::anti_join(dt_in, dt_old, by = "date")
+      dt_old %>%
+        dplyr::bind_rows(dt_new) %>%
+        readr::write_csv(index$path[index$name == "strikes"])
+      sync_ssp_cloud("input")
+      shinyalert(title = "Import manuel des gèves réussi !",
+                 text = paste("Ajout des grèves pour ", nrow(dt_new), " jours."),
+                 type = "success")
     })
     
     ### Import vacations from open data ----------------------------------------
@@ -964,6 +1076,7 @@ server <- function(session, input, output) {
       new_vacs %>%
         dplyr::bind_rows(old_vacs) %>%
         readr::write_csv(index$path[index$name == "vacs"])
+      sync_ssp_cloud("input")
       shinyalert(title = "Import des vacances depuis l'open data de l'éducation nationale réussi !",
                  text = paste("Ajout des vacances scolaires pour la Zone B, pour",
                               nrow(new_vacs), 
@@ -989,7 +1102,7 @@ server <- function(session, input, output) {
           dplyr::select(ecole = Ecoles, effectif = starts_with("Total g")) %>%
           dplyr::mutate(annee_scolaire = an_scol_import)
         hc_all <- dt()$effs %>%
-          filter(!(paste(ecole, annee_scolaire) %in% paste(hc_new$ecole, hc_new$annee_scolaire))) %>%
+          dplyr::filter(!(paste(ecole, annee_scolaire) %in% paste(hc_new$ecole, hc_new$annee_scolaire))) %>%
           dplyr::bind_rows(hc_new) %>%
           readr::write_csv(index$path[index$name == "effs"])
         shinyalert(title = "Import manuel des effectifs réussi !",
@@ -1022,23 +1135,103 @@ server <- function(session, input, output) {
     ## Launch model ------------------------------------------------------------
     observeEvent(input$launch_model, {
         run_verteego(
-            begin_date = as.character(input$daterange_forecast[1]),
-            column_to_predict =  input$column_to_predict,
-            confidence = input$confidence,
-            end_date = as.character(input$daterange_forecast[2]),
-            preprocessing = "preprocessing" %in% input$model_options,
-            remove_no_school = "remove_no_school" %in% input$model_options,
-            remove_outliers = "remove_outliers" %in% input$model_options,
-            start_training_date = as.character(input$start_training_date),
-            training_type = input$training_type,
-            weeks_latency = input$week_latency
+          data_path = data_path,
+          begin_date = as.character(input$daterange_forecast[1]),
+          column_to_predict =  input$column_to_predict,
+          confidence = input$confidence,
+          end_date = as.character(input$daterange_forecast[2]),
+          preprocessing = "preprocessing" %in% input$model_options,
+          remove_no_school = "remove_no_school" %in% input$model_options,
+          remove_outliers = "remove_outliers" %in% input$model_options,
+          start_training_date = as.character(input$start_training_date),
+          training_type = input$training_type,
+          weeks_latency = input$week_latency
         )
-        dt$prev <- load_results()
+        # dt$prev <- load_results()
+
+      # then send outputs to S3 storage if runing on SSPCloud
+      sync_ssp_cloud("output")
+      
+      
     })
     
     
+    ## Compute and render prevision errors -------------------------------------
+    
+    consolidated <- reactive({
+      consolid <- dt()$freqs %>%
+        dplyr::mutate(date = as.Date(date)) %>%
+        dplyr::right_join(prev(),
+                          by = c("date" = "date_str", 
+                                 "site_nom" = "cantine_nom")) %>%
+        dplyr::select(date, site_nom, site_type, prevision, reel, output) %>%
+        dplyr::left_join(readr::read_csv(index$path[index$name == "strikes"]),
+                         by = "date")
+      
+      consolid <- consolid %>%
+        dplyr::mutate(`Erreur de prédiction` =  output - reel,
+                      type = "Modèle") %>%
+        dplyr::bind_rows(dplyr::mutate(consolid, 
+                                       `Erreur de prédiction` =  prevision - reel,
+                                       type = "Agents")) %>%
+        dplyr::filter(is.na(greve) & reel != 0)  %>%
+        dplyr::filter(abs(`Erreur de prédiction`) < 100) %>%
+        dplyr::mutate(Mois = paste(lubridate::year(date), 
+                                   lubridate::month(date), sep = "-")) %>%
+        dplyr::group_by(type) 
+      
+      return(consolid)
+    })
+    
+    distance <- reactive({
+      consolidated() %>%
+        dplyr::summarise(mean_error = mean(mean(`Erreur de prédiction`, 
+                                                na.rm = TRUE)))
+    })
+      
+    
+    output$error_by_school <- renderPlot({ 
+     consolidated() %>%
+        ggplot2::ggplot(ggplot2::aes(x = `Erreur de prédiction`)) + 
+        ggplot2::geom_density(ggplot2::aes(y = ..count.., color = type)) +
+        ggplot2::geom_vline(ggplot2::aes(xintercept = mean_error, color = type),
+                            data = distance(), linetype = "dashed") +
+        ggplot2::labs(title = "Erreurs de prédiction quotidiennes par cantine",
+                      x = "Erreur de prédiction : densité (courbe) et moyenne (pointillés)",
+                      y = "Occurence (densité lissée)")
+    })
     
     
+    global <- reactive({
+      consolidated() %>%
+        dplyr::mutate(`Année` = ifelse(month(date) > 7,
+                                       paste(year(date), year(date)+1, sep = "-"),
+                                       paste(year(date)-1, year(date), sep = "-"))) %>%
+        dplyr::group_by(date, `Année`, type) %>%
+        dplyr::summarise(`Erreur de prédiction` = sum(`Erreur de prédiction`,
+                                                      na.rm = TRUE))
+    })
+      
+
+    distance_global <- reactive({
+      global() %>%
+        dplyr::group_by(type) %>%
+        dplyr::summarise(mean_error = mean(mean(`Erreur de prédiction`,
+                                                na.rm = TRUE)))
+    })
+      
+
+    output$error_global <- renderPlot({ global() %>%
+        dplyr::group_by(type) %>%
+        ggplot2::ggplot(ggplot2::aes(x = `Erreur de prédiction`)) +
+        ggplot2::geom_density(ggplot2::aes(y = ..count.., color = type)) +
+        ggplot2::geom_vline(ggplot2::aes(xintercept = mean_error, color = type),
+                   data = distance_global(), linetype = "dashed") +
+        ggplot2::labs(title = "Erreurs de prédiction quotidiennes au global",
+             x = "Erreur de prédiction : densité (courbe) et moyenne (pointillés)",
+             y = "Fréquence (densité lissée, 1 = 100%)")
+    })
+
     ## System info -------------------------------------------------------------
     
     output$sysinfo <- DT::renderDataTable({

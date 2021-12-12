@@ -1,10 +1,9 @@
-*.Rproj
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
 rsconnect/
-meal_forecast_xgboost.Rproj
+input/
 output/
 .profile
 __pycache__/

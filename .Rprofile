@@ -37,6 +37,12 @@ if (Sys.info()[['user']] == 'shiny'){
   Sys.setenv(PYTHON_PATH = py_loc)
   Sys.setenv(VIRTUALENV_NAME = VIRTUALENV_NAME)
   
+} else if (Sys.info()[['user']] == "rstudio") { # This is for SSPCloud
+  
+  Sys.setenv(PYTHON_PATH = "/usr/bin/python3")
+  Sys.setenv(VIRTUALENV_NAME = paste0("~/", VIRTUALENV_NAME))
+  Sys.setenv(RETICULATE_PYTHON = paste0("~/", VIRTUALENV_NAME, "/bin/python3"))
+  
 } else {
   
   # Running locally

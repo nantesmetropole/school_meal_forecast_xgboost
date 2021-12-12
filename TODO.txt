@@ -1,9 +1,20 @@
+# Checklist premier lancement
+Télécharger les données de fréquentation depuis l'open data
+Télécharger les menus depuis l'open data
+Charger les grèves depuis un fichier local
+Charger les effectifs depuis l'open data
+
+
+
+# BUG APRES TEST -----------------------------------
+Mise à jour du graph de disponibilité.
+
+
 # EN COURS ------------------------------------------
 Résoudre Bug démarrage
 Rrevoir les écarts entre labels 
 Réduire le nombre de méthodes d'import
 Visualiser les prévision en ligne et pas histogramme
-
 Ajouter la disponibilité des 
 Ajouter effectifs dans le graph de disponibilité
 

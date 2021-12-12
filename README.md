@@ -1,5 +1,5 @@
 ## Overview  
-
+test
 This application aims at helping estimate the number of guests per school cafeteria per day on a given period. It needs past data to work. Examples of files can be found in `test/data` (see **Data** Section for more details). 
 The tool was developed by [Verteego](https://www.verteego.com/) on behalf of Nantes Métropole. Other contributions are welcome, see the file CONTRIBUTION.md
 
@@ -109,7 +109,7 @@ Note that Data files contain informations related to France, thus their names ar
 *Note that among those files categorical features are automatically one hot encoded.
 Thus, one can change the possible values but must ensure that they remain consistent along the files.*
 
-- `{--data-path}/raw/cantines.csv` of which keys are (`cantine_name`, `cantine_type`)
+- `{--data-path}/raw/cantines.csv` of which keys are (`cantine_nom`, `cantine_type`)
 It contains the list of school cafeterias for which a prediction may be requested.
 
 - `{--data-path}/raw/frequentation.csv` of which keys are (`site_nom`, `site_type`, `date`)
