@@ -74,6 +74,8 @@ schoolyear_hq_start <- 2010
 
 schoolyear_hq_end <- 2025
 
+# A parameter for the display of widgets on the "load data" page
+width_load_widgets <- "317px"
 
 # A function to build open data urls from portal and dataset id
 portal = "data.nantesmetropole.fr"
@@ -380,7 +382,7 @@ sync_ssp_cloud <- function(folders) {
 # UI ----------------------------------------------------------------------
 ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
                  theme = bslib::bs_theme(bootswatch = "simplex", version = 5),
-                 # cosmo, simplex, spacelab, yeti, zephyr, lumen
+                 # cosmo, simplex
                  ## Result visualization ----------------------------------------------------
                  tabPanel("Consulter des prévisions",
                           # Hide temporary error messages
@@ -417,7 +419,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
                           sidebarLayout(
                               sidebarPanel(
                                   shinyjs::inlineCSS(list(
-                                      ".shiny-input-container" = "margin-bottom: -20px",
+                                      ".shiny-input-container" = "margin-bottom: -1px",
                                       ".btn" = "margin-bottom: 5px"
                                   )),
                                   # sources for icons: https://icons.getbootstrap.com/
@@ -436,7 +438,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
                                             label = NULL,
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier extrait de Fusion",
-                                            width = "271px"),
+                                            width = width_load_widgets),
                                   p(strong("Menus pour la restauration scolaire"),
                                     tags$button(id = "help_menus",
                                                 type = "button",
@@ -449,7 +451,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
                                   fileInput("add_menus", label = NULL,
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier extrait de Fusion",
-                                            width = "271px"),
+                                            width = width_load_widgets),
                                   p(strong("Grèves (éducation ou restauration)"),
                                     tags$button(id = "help_strikes",
                                                 type = "button",
@@ -458,7 +460,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
                                   fileInput("add_strikes", label = NULL,
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier de suivi",
-                                            width = "271px"),
+                                            width = width_load_widgets),
                                   p(strong("Effectifs des écoles"),
                                     tags$button(id = "help_effs",
                                                 type = "button",
@@ -470,11 +472,11 @@ ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
                                             buttonLabel = "Parcourir",
                                             placeholder = "Fichier sur le PC",
                                             accept = c(".xls", ".xlsx"),
-                                            width = "271px"),
+                                            width = width_load_widgets),
                                   selectInput("schoolyear_hc", NULL,
                                               choices = c("Préciser l'année",
                                                 hc_years),
-                                              width = "271px"),
+                                              width = width_load_widgets),
                                   p(strong("Vacances scolaires pour la zone B"),
                                     tags$button(id = "help_holi",
                                                 type = "button",
@@ -492,7 +494,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
                  ## Model parameters --------------------------------------------------------
                  tabPanel("Générer des prévisions",
                           fluidRow(
-                              column(4,
+                              column(3,
                                      selectInput("column_to_predict", "Variable que l'on cherche à prédire :",
                                                  c("Fréquentation réelle" = "reel", 
                                                    "Commandes par les écoles" = "prevision")),
@@ -514,7 +516,7 @@ ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
                                                format = "dd/mm/yyyy",
                                                language = "fr",
                                                weekstart = 1)),
-                              column(4,
+                              column(5,
                                      sliderInput("confidence", "Niveau de confiance :",
                                                  min = 0, max = 1, value = 0.9, step = 0.01),
                                      br(), br(),
@@ -582,6 +584,7 @@ server <- function(session, input, output) {
     hideTab(inputId = "tabs", target = "Superviser", session = session)
     hideTab(inputId = "tabs", target = "Générer des prévisions", session = session)
     hideTab(inputId = "tabs", target = "Charger des données", session = session)
+    updateNavlistPanel(inputId = "tabs", session = session, selected = "Consulter des prévisions")
   }, ignoreInit = TRUE)
   
     # Reactive values for result display -----------------------------------
