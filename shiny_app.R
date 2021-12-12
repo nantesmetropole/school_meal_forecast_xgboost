@@ -378,7 +378,9 @@ sync_ssp_cloud <- function(folders) {
 }
 
 # UI ----------------------------------------------------------------------
-ui <- navbarPage("Prévoir commandes et fréquentation",
+ui <- navbarPage("Prévoir commandes et fréquentation", id = "tabs",
+                 theme = bslib::bs_theme(bootswatch = "simplex", version = 5),
+                 # cosmo, simplex, spacelab, yeti, zephyr, lumen
                  ## Result visualization ----------------------------------------------------
                  tabPanel("Consulter des prévisions",
                           # Hide temporary error messages
@@ -545,7 +547,9 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
                           verbatimTextOutput('which_python'),
                           verbatimTextOutput('python_version'),
                           verbatimTextOutput('ret_env_var'),
-                          verbatimTextOutput('venv_root'))
+                          verbatimTextOutput('venv_root')),
+                 bslib::nav_item(actionButton("set_simple", "Simple"),
+                                 actionButton("set_advanced", "Avancé"))
 )
 
 
@@ -554,8 +558,32 @@ ui <- navbarPage("Prévoir commandes et fréquentation",
 
 # Define server logic required to draw a histogram
 server <- function(session, input, output) {
-    
-    
+  
+
+# Handle simple vs. advanced interface ------------------------------------
+  
+  # Start with hidden tabs
+  set_ui <- reactiveValues(simple = TRUE) 
+  hideTab(inputId = "tabs", target = "Superviser", session = session)
+  hideTab(inputId = "tabs", target = "Générer des prévisions", session = session)
+  hideTab(inputId = "tabs", target = "Charger des données", session = session)
+  
+  # Open advanced tabs on click
+  observeEvent(input$set_advanced, {
+    set_ui$simple <- FALSE
+    showTab(inputId = "tabs", target = "Superviser", session = session)
+    showTab(inputId = "tabs", target = "Générer des prévisions", session = session)
+    showTab(inputId = "tabs", target = "Charger des données", session = session)
+  }, ignoreInit = TRUE)
+  
+  # Close advanced tabs on click
+  observeEvent(input$set_simple, {
+    set_ui$simple <- TRUE
+    hideTab(inputId = "tabs", target = "Superviser", session = session)
+    hideTab(inputId = "tabs", target = "Générer des prévisions", session = session)
+    hideTab(inputId = "tabs", target = "Charger des données", session = session)
+  }, ignoreInit = TRUE)
+  
     # Reactive values for result display -----------------------------------
     
     
